@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { ShikimoriAnime, KodikSearchResult } from '../types';
+import { ShikimoriAnime } from '../types';
 import { getAnimeById } from '../services/shikimori';
-import { findKodikPlayer } from '../services/kodik';
+import { findAnilibriaPlayer, AnilibriaResult } from '../services/anilibria';
 import { AnimeInfo } from '../components/AnimeComponents';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { CommentSection } from '../components/CommunityComponents';
@@ -10,7 +10,7 @@ import { CommentSection } from '../components/CommunityComponents';
 const AnimePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [anime, setAnime] = useState<ShikimoriAnime | null>(null);
-  const [kodikData, setKodikData] = useState<KodikSearchResult | null>(null);
+  const [anilibriaData, setAnilibriaData] = useState<AnilibriaResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,13 +22,11 @@ const AnimePage: React.FC = () => {
         setLoading(true);
         setError(null);
         
-        // Step 1: Fetch Shikimori data first. It's needed for the smart search.
         const shikimoriData = await getAnimeById(id);
         setAnime(shikimoriData);
         
-        // Step 2: Use the Shikimori data to find the player.
-        const kodikResult = await findKodikPlayer(shikimoriData);
-        setKodikData(kodikResult);
+        const anilibriaResult = await findAnilibriaPlayer(shikimoriData);
+        setAnilibriaData(anilibriaResult);
 
       } catch (err) {
         setError("Не удалось загрузить данные об аниме. Попробуйте обновить страницу.");
@@ -61,8 +59,6 @@ const AnimePage: React.FC = () => {
       return <div className="text-center p-10">Аниме не найдено.</div>
   }
 
-  const playerUrl = kodikData ? `https:${kodikData.link}` : null;
-
   return (
     <div>
       <div 
@@ -75,7 +71,7 @@ const AnimePage: React.FC = () => {
       <AnimeInfo anime={anime} />
       
       <div className="mt-12">
-        <VideoPlayer playerUrl={playerUrl} />
+        <VideoPlayer anilibriaData={anilibriaData} />
       </div>
 
       <div className="mt-12">
