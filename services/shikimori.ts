@@ -1,4 +1,4 @@
-import { ShikimoriAnime, Genre } from "../types";
+import { ShikimoriAnime, Genre, FranchiseData, FranchiseNode } from "../types";
 import { processAnimeImages, processScreenshots, isPlaceholder, makeUrlAbsolute } from './imageService';
 import { cache } from './cache';
 
@@ -183,4 +183,78 @@ export const getGenres = (): Promise<Genre[]> => {
     const cacheKey = 'genres_list';
     const cacheTTL = 24 * 60 * 60 * 1000; // 24 hours
     return fetchData<Genre[]>('/api/genres', { process: false, cacheKey, cacheTTL });
+};
+
+export const getSimilarAnime = (id: string): Promise<ShikimoriAnime[]> => {
+    const cacheKey = `similar_anime_${id}`;
+    const cacheTTL = 60 * 60 * 1000; // 1 hour
+    return fetchData<ShikimoriAnime[]>(`/api/animes/${id}/similar`, { cacheKey, cacheTTL });
+};
+
+export const getFranchiseAnime = async (id: string): Promise<ShikimoriAnime[]> => {
+    const cacheKey = `franchise_anime_${id}`;
+    const cacheTTL = 60 * 60 * 1000; // 1 hour
+
+    const cachedData = cache.get<ShikimoriAnime[]>(cacheKey);
+    if (cachedData) {
+        return cachedData;
+    }
+    
+    const franchiseData = await fetchData<FranchiseData>(`/api/animes/${id}/franchise`, { process: false });
+
+    if (!franchiseData || !franchiseData.nodes) {
+        return [];
+    }
+    
+    const sortedNodes = franchiseData.nodes.sort((a, b) => a.weight - b.weight);
+
+    // Map FranchiseNode to a partial ShikimoriAnime for display
+    const mappedAnime: ShikimoriAnime[] = sortedNodes.map((node: FranchiseNode) => ({
+        id: node.id,
+        name: node.name,
+        russian: node.name,
+        image: {
+            original: makeUrlAbsolute(node.image_url),
+            preview: makeUrlAbsolute(node.image_url),
+            x96: makeUrlAbsolute(node.image_url),
+            x48: makeUrlAbsolute(node.image_url),
+        },
+        score: '0.0',
+        url: node.url,
+        kind: node.kind as any,
+        aired_on: node.year ? `${node.year}-01-01` : new Date(node.date * 1000).toISOString(),
+        // --- Default values for required fields ---
+        status: 'released',
+        episodes: 0,
+        episodes_aired: 0,
+        released_on: null,
+        rating: '',
+        english: [],
+        japanese: [],
+        synonyms: [],
+        license_name_ru: null,
+        duration: 0,
+        description: null,
+        description_html: null,
+        description_source: null,
+        franchise: null,
+        favoured: false,
+        anons: false,
+        ongoing: false,
+        thread_id: 0,
+        topic_id: 0,
+        myanimelist_id: 0,
+        rates_scores_stats: [],
+        rates_statuses_stats: [],
+        updated_at: '',
+        next_episode_at: null,
+        genres: [],
+        studios: [],
+        videos: [],
+        screenshots: [],
+        user_rate: null,
+    }));
+    
+    cache.set(cacheKey, mappedAnime, cacheTTL);
+    return mappedAnime;
 };

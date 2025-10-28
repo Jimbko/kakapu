@@ -7,6 +7,7 @@ import { AnimeInfo } from '../components/AnimeComponents';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { CommentSection } from '../components/CommunityComponents';
 import { useAuth, StatusListKey } from '../contexts/AuthContext';
+import { RelatedContent } from '../components/anime/RelatedContent';
 
 const AnimePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -118,7 +119,7 @@ const AnimePage: React.FC = () => {
     <div>
       <div 
         className="h-[40vh] md:h-[50vh] -mx-4 -mt-8 mb-8 bg-cover bg-center relative" 
-        style={{ backgroundImage: `url(${anime.image.original})` }}
+        style={{ backgroundImage: `url(${anime.screenshots.length > 0 ? anime.screenshots[0].original : anime.image.original})` }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/70 to-transparent"></div>
       </div>
@@ -138,6 +139,10 @@ const AnimePage: React.FC = () => {
 
       <div className="mt-12 max-w-5xl mx-auto">
         <CommentSection episodeId={`${id}-ep1`} />
+      </div>
+      
+      <div className="mt-12">
+        <RelatedContent animeId={id as string} />
       </div>
 
     </div>

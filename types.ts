@@ -113,3 +113,20 @@ export interface UserAnimeList {
   dropped: SimpleAnime[];
   favorite: SimpleAnime[];
 }
+
+export interface FranchiseNode {
+  id: number;
+  date: number;
+  name: string;
+  image_url: string;
+  url: string;
+  kind: string;
+  year: number | null;
+  weight: number;
+}
+
+export interface FranchiseData {
+  links: any[];
+  nodes: FranchiseNode[];
+  current_id: number;
+}

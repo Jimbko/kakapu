@@ -21,10 +21,12 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
           alt={anime.russian || anime.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
-        <div className="absolute top-2 left-2 px-2 py-1 text-xs font-bold text-white rounded-md flex items-center space-x-1 backdrop-blur-md bg-black/50">
-          <span className={`${ratingColor} p-1 rounded-full`}>{ICONS.STAR_FILLED}</span>
-          <span>{anime.score}</span>
-        </div>
+        {parseFloat(anime.score) > 0 && (
+          <div className="absolute top-2 left-2 px-2 py-1 text-xs font-bold text-white rounded-md flex items-center space-x-1 backdrop-blur-md bg-black/50">
+            <span className={`${ratingColor} p-1 rounded-full`}>{ICONS.STAR_FILLED}</span>
+            <span>{anime.score}</span>
+          </div>
+        )}
       </div>
       {/* Fix: Changed hh3 to h3 for correct HTML semantics and to fix JSX error. */}
       <h3 className="text-sm font-semibold mt-2 text-gray-200 group-hover:text-white transition-colors truncate">
@@ -39,8 +41,8 @@ interface AnimeCarouselProps {
   title: string;
   animeList: ShikimoriAnime[];
   loading: boolean;
-  listType: string;
-  listTitle: string;
+  listType?: string;
+  listTitle?: string;
 }
 
 export const AnimeCarousel: React.FC<AnimeCarouselProps> = ({ title, animeList, loading, listType, listTitle }) => {
@@ -48,9 +50,11 @@ export const AnimeCarousel: React.FC<AnimeCarouselProps> = ({ title, animeList, 
     <section className="mb-16">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-white">{title}</h2>
-        <Link to={`/list/${listType}/${encodeURIComponent(listTitle)}`} className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">
-          Смотреть все →
-        </Link>
+        {listType && listTitle && (
+          <Link to={`/list/${listType}/${encodeURIComponent(listTitle)}`} className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">
+            Смотреть все →
+          </Link>
+        )}
       </div>
       <div className="flex space-x-4 overflow-x-auto pb-4 custom-scrollbar">
         {loading && Array.from({ length: 10 }).map((_, i) => (
