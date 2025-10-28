@@ -1,5 +1,4 @@
-import React, 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShikimoriAnime } from '../types';
 import { getAnimeList, getAnimeById } from '../services/shikimori';
 import { AnimeSection } from '../components/home/AnimeSection';
