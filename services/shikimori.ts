@@ -1,14 +1,14 @@
 import { ShikimoriAnime, Genre, FranchiseData, FranchiseNode } from "../types";
-import { processAnimeImages, processScreenshots, isPlaceholder, makeUrlAbsolute } from './imageService';
 import { cache } from './cache';
+import { selectBestPoster, DEBUG_IMAGES, tryAlternativePosterSources } from './imageProcessor';
+import { makeUrlAbsolute } from "../utils/urlHelpers";
 
 const API_BASE = 'https://shikimori.one';
 
-// A robust, promise-based request queue to prevent rate-limiting (429 errors).
-// This serializes all concurrent requests and ensures a minimum interval between them.
+// Rate limiting
 let requestQueue = Promise.resolve();
 let lastRequestTime = 0;
-const MIN_REQUEST_INTERVAL = 500; // 2 requests per second is a safe limit
+const MIN_REQUEST_INTERVAL = 500;
 
 const throttle = () => {
     requestQueue = requestQueue.then(() => {
@@ -28,88 +28,58 @@ const throttle = () => {
     return requestQueue;
 };
 
-const processAnimeData = (anime: ShikimoriAnime): ShikimoriAnime => {
-    const processedAnime = JSON.parse(JSON.stringify(anime));
-    processedAnime.image = processAnimeImages(processedAnime);
-    processedAnime.screenshots = processScreenshots(processedAnime.screenshots);
-    return processedAnime;
-};
-
-const fetchData = async <T>(
-    endpoint: string, 
-    options: { process?: boolean; cacheKey?: string; cacheTTL?: number } = {}
-): Promise<T> => {
-    const { process = true, cacheKey, cacheTTL } = options;
-
-    if (cacheKey) {
-        const cachedData = cache.get<T>(cacheKey);
-        if (cachedData) {
-            // Data in cache is now pre-processed, so we can return it directly.
-            // console.log(`[Cache] HIT for key: ${cacheKey}`);
-            return cachedData;
-        }
-        // console.log(`[Cache] MISS for key: ${cacheKey}`);
-    }
-
+const fetchData = async <T>(endpoint: string): Promise<T> => {
     await throttle();
     try {
         const response = await fetch(`${API_BASE}${endpoint}`, {
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36' }
-        });
-        if (!response.ok) {
-            throw new Error(`Shikimori API error: ${response.status} ${response.statusText}`);
-        }
-        const rawData = await response.json();
-        
-        if (!process) {
-            // If processing is disabled, we still cache the raw data and return it.
-            // This is used by getAnimeById which does its own processing.
-            if (cacheKey) {
-                cache.set(cacheKey, rawData, cacheTTL);
+            headers: { 
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'Accept': 'application/json'
             }
-            return rawData;
-        }
-
-        // Process the data *before* caching.
-        let processedData;
-        if (Array.isArray(rawData)) {
-            processedData = rawData.map(item => processAnimeData(item as ShikimoriAnime)) as T;
-        } else if (rawData && typeof rawData === 'object' && 'id' in rawData && 'kind' in rawData) {
-            processedData = processAnimeData(rawData as ShikimoriAnime) as T;
-        } else {
-            processedData = rawData;
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Shikimori API error: ${response.status} for ${endpoint}`);
         }
         
-        // Cache the *processed* data.
-        if (cacheKey && processedData) {
-            cache.set(cacheKey, processedData, cacheTTL);
-        }
-
-        return processedData;
-
+        return await response.json();
     } catch (error) {
-        console.error("Failed to fetch from Shikimori:", error);
+        console.error(`Failed to fetch ${endpoint}:`, error);
         throw error;
     }
 };
 
-export const getAnimeList = (
-    options: {
-        page?: number,
-        limit?: number,
-        order?: string,
-        kind?: string,
-        status?: string,
-        season?: string,
-        score?: number,
-        genre?: string,
-    } = {}
-): Promise<ShikimoriAnime[]> => {
+// Simplified processor for lists where only one source is available
+const processAnimeFromList = (rawAnime: any): ShikimoriAnime => {
+    const posterResult = selectBestPoster(rawAnime.image, null);
+    
+    return {
+        ...rawAnime,
+        image: posterResult.image,
+        screenshots: (rawAnime.screenshots || []).map((s: any) => ({
+            original: makeUrlAbsolute(s.original),
+            preview: makeUrlAbsolute(s.preview),
+        })),
+    };
+};
+
+
+export const getAnimeList = async (options: {
+    page?: number,
+    limit?: number,
+    order?: string,
+    kind?: string,
+    status?: string,
+    season?: string,
+    score?: number,
+    genre?: string,
+} = {}): Promise<ShikimoriAnime[]> => {
     const params = new URLSearchParams({
         page: String(options.page || 1),
         limit: String(options.limit || 20),
         order: options.order || 'ranked',
     });
+    
     if (options.kind) params.set('kind', options.kind);
     if (options.status) params.set('status', options.status);
     if (options.season) params.set('season', options.season);
@@ -117,90 +87,158 @@ export const getAnimeList = (
     if (options.genre) params.set('genre', options.genre);
 
     const cacheKey = `anime_list_${params.toString()}`;
-    const cacheTTL = 15 * 60 * 1000; // 15 minutes
+    const cached = cache.get<ShikimoriAnime[]>(cacheKey);
+    if (cached) return cached;
 
-    return fetchData<ShikimoriAnime[]>(`/api/animes?${params.toString()}`, { cacheKey, cacheTTL });
+    const animeList = await fetchData<any[]>(`/api/animes?${params.toString()}`);
+    const processed = animeList.map(processAnimeFromList);
+    
+    cache.set(cacheKey, processed, 15 * 60 * 1000);
+    return processed;
 };
 
 export const getAnimeById = async (id: string): Promise<ShikimoriAnime> => {
     const cacheKey = `anime_by_id_${id}`;
-    const cacheTTL = 60 * 60 * 1000; // 1 hour
+    const cached = cache.get<ShikimoriAnime>(cacheKey);
+    if (cached) return cached;
 
-    const cachedData = cache.get<ShikimoriAnime>(cacheKey);
-    if (cachedData) {
-        // console.log(`[Cache] HIT for anime ID: ${id}`);
-        return cachedData;
+    console.log(`📥 Fetching anime ${id} from multiple sources...`);
+
+    const [detailResult, listResult] = await Promise.allSettled([
+        fetchData<any>(`/api/animes/${id}`),
+        fetchData<any[]>(`/api/animes?ids=${id}&limit=1`),
+    ]);
+
+    if (detailResult.status === 'rejected' && listResult.status === 'rejected') {
+        console.error(`❌ Failed to fetch anime ${id} from all sources.`);
+        throw new Error(`Failed to fetch anime ${id}`);
     }
 
-    // Fetch raw data without processing first to check for placeholder
-    const anime = await fetchData<ShikimoriAnime>(`/api/animes/${id}`, { process: false });
-    const absolutePosterUrl = anime.image?.original ? makeUrlAbsolute(anime.image.original) : '';
+    const animeDetail = detailResult.status === 'fulfilled' ? detailResult.value : null;
+    const animeList = listResult.status === 'fulfilled' ? listResult.value : null;
+    const listVersion = animeList?.[0] || null;
+
+    const baseAnimeData = animeDetail || listVersion;
+    if (!baseAnimeData) {
+        throw new Error(`Could not retrieve base data for anime ${id}`);
+    }
     
-    if (isPlaceholder(absolutePosterUrl)) {
-        console.log(`Placeholder detected for anime ${id}. Attempting fallback.`);
-        try {
-            const animeListResponse = await fetchData<ShikimoriAnime[]>(`/api/animes?ids=${id}&limit=1`, { process: false });
-            if (animeListResponse && animeListResponse.length > 0) {
-                const refreshedAnime = animeListResponse[0];
-                if (refreshedAnime.image && !isPlaceholder(makeUrlAbsolute(refreshedAnime.image.original))) {
-                    console.log(`Successfully fetched updated poster for ${id}.`);
-                    anime.image = refreshedAnime.image;
-                }
-            }
-        } catch (error) {
-            console.warn(`Could not re-fetch anime data for ${id}:`, error);
+    const posterResult = selectBestPoster(animeDetail?.image, listVersion?.image);
+
+    // Try alternative sources before giving up
+    if (posterResult.image === null || posterResult.isPlaceholder) {
+        console.log(`🔄 Trying alternative poster sources for anime ${id}...`);
+        const alternativePoster = await tryAlternativePosterSources(
+            Number(id), 
+            baseAnimeData.name || baseAnimeData.russian
+        );
+        
+        if (alternativePoster) {
+            posterResult.image = {
+                original: alternativePoster,
+                preview: alternativePoster,
+                x96: alternativePoster,
+                x48: alternativePoster,
+            };
+            posterResult.isPlaceholder = false;
+            posterResult.sourceInfo = { endpoint: 'alternative', size: 'original', url: alternativePoster };
+            console.log(`✅ Successfully found alternative poster for ${id}`);
         }
     }
+
+
+    if (DEBUG_IMAGES) {
+      console.group(`[Image Debug] Anime ${id}: ${baseAnimeData.name}`);
+      console.log(`  Detail Endpoint Image:`, animeDetail?.image);
+      console.log(`  List Endpoint Image:`, listVersion?.image);
+      console.log(`  Selected Source:`, posterResult.sourceInfo);
+      console.log(`  Final Image Object:`, posterResult.image);
+      console.log(`  Is Placeholder:`, posterResult.isPlaceholder);
+      console.groupEnd();
+    }
     
-    const processedAnime = processAnimeData(anime);
-    cache.set(cacheKey, processedAnime, cacheTTL);
-    return processedAnime;
+    const finalAnime: ShikimoriAnime = {
+        ...baseAnimeData,
+        image: posterResult.image,
+        screenshots: (baseAnimeData.screenshots || []).map((s: any) => ({
+            original: makeUrlAbsolute(s.original),
+            preview: makeUrlAbsolute(s.preview),
+        })),
+    };
+
+    const cacheTTL = posterResult.isPlaceholder 
+        ? 5 * 60 * 1000 // 5 minutes for items without a poster
+        : 60 * 60 * 1000; // 1 hour for items with a poster
+
+    cache.set(cacheKey, finalAnime, cacheTTL);
+    return finalAnime;
 };
 
-export const getAnimeByIds = (ids: number[]): Promise<ShikimoriAnime[]> => {
-    if (ids.length === 0) return Promise.resolve([]);
+export const getAnimeByIds = async (ids: number[]): Promise<ShikimoriAnime[]> => {
+    if (ids.length === 0) return [];
+    
+    const cacheKey = `anime_by_ids_${ids.join(',')}`;
+    const cached = cache.get<ShikimoriAnime[]>(cacheKey);
+    if (cached) return cached;
+
     const params = new URLSearchParams({
         ids: ids.join(','),
         limit: String(ids.length)
     });
+
+    const animeList = await fetchData<any[]>(`/api/animes?${params.toString()}`);
+    const processed = animeList.map(processAnimeFromList);
     
-    const cacheKey = `anime_by_ids_${ids.join(',')}`;
-    const cacheTTL = 60 * 60 * 1000; // 1 hour
+    cache.set(cacheKey, processed, 60 * 60 * 1000);
+    return processed;
+};
 
-    return fetchData<ShikimoriAnime[]>(`/api/animes?${params.toString()}`, { cacheKey, cacheTTL });
-}
+export const searchAnime = async (query: string, limit: number = 20): Promise<ShikimoriAnime[]> => {
+    const cacheKey = `search_${query}_${limit}`;
+    const cached = cache.get<ShikimoriAnime[]>(cacheKey);
+    if (cached) return cached;
 
-export const searchAnime = (query: string, limit: number = 20): Promise<ShikimoriAnime[]> => {
     const params = new URLSearchParams({
         search: query,
         limit: String(limit),
         kind: 'tv,movie,ova,ona,special,music'
     });
-    return fetchData<ShikimoriAnime[]>(`/api/animes?${params.toString()}`, { process: true, cacheKey: `search_${query}`, cacheTTL: 5 * 60 * 1000 });
+
+    const animeList = await fetchData<any[]>(`/api/animes?${params.toString()}`);
+    const processed = animeList.map(processAnimeFromList);
+    
+    cache.set(cacheKey, processed, 5 * 60 * 1000);
+    return processed;
 };
 
-export const getGenres = (): Promise<Genre[]> => {
+export const getGenres = async (): Promise<Genre[]> => {
     const cacheKey = 'genres_list';
-    const cacheTTL = 24 * 60 * 60 * 1000; // 24 hours
-    return fetchData<Genre[]>('/api/genres', { process: false, cacheKey, cacheTTL });
+    const cached = cache.get<Genre[]>(cacheKey);
+    if (cached) return cached;
+
+    const genres = await fetchData<Genre[]>('/api/genres');
+    cache.set(cacheKey, genres, 24 * 60 * 60 * 1000);
+    return genres;
 };
 
-export const getSimilarAnime = (id: string): Promise<ShikimoriAnime[]> => {
+export const getSimilarAnime = async (id: string): Promise<ShikimoriAnime[]> => {
     const cacheKey = `similar_anime_${id}`;
-    const cacheTTL = 60 * 60 * 1000; // 1 hour
-    return fetchData<ShikimoriAnime[]>(`/api/animes/${id}/similar`, { cacheKey, cacheTTL });
+    const cached = cache.get<ShikimoriAnime[]>(cacheKey);
+    if (cached) return cached;
+
+    const similarList = await fetchData<any[]>(`/api/animes/${id}/similar`);
+    const processed = similarList.map(processAnimeFromList);
+    
+    cache.set(cacheKey, processed, 60 * 60 * 1000);
+    return processed;
 };
 
 export const getFranchiseAnime = async (id: string): Promise<ShikimoriAnime[]> => {
     const cacheKey = `franchise_anime_${id}`;
-    const cacheTTL = 60 * 60 * 1000; // 1 hour
-
-    const cachedData = cache.get<ShikimoriAnime[]>(cacheKey);
-    if (cachedData) {
-        return cachedData;
-    }
+    const cached = cache.get<ShikimoriAnime[]>(cacheKey);
+    if (cached) return cached;
     
-    const franchiseData = await fetchData<FranchiseData>(`/api/animes/${id}/franchise`, { process: false });
+    const franchiseData = await fetchData<FranchiseData>(`/api/animes/${id}/franchise`);
 
     if (!franchiseData || !franchiseData.nodes) {
         return [];
@@ -208,53 +246,50 @@ export const getFranchiseAnime = async (id: string): Promise<ShikimoriAnime[]> =
     
     const sortedNodes = franchiseData.nodes.sort((a, b) => a.weight - b.weight);
 
-    // Map FranchiseNode to a partial ShikimoriAnime for display
-    const mappedAnime: ShikimoriAnime[] = sortedNodes.map((node: FranchiseNode) => ({
-        id: node.id,
-        name: node.name,
-        russian: node.name,
-        image: {
-            original: makeUrlAbsolute(node.image_url),
-            preview: makeUrlAbsolute(node.image_url),
-            x96: makeUrlAbsolute(node.image_url),
-            x48: makeUrlAbsolute(node.image_url),
-        },
-        score: '0.0',
-        url: node.url,
-        kind: node.kind as any,
-        aired_on: node.year ? `${node.year}-01-01` : new Date(node.date * 1000).toISOString(),
-        // --- Default values for required fields ---
-        status: 'released',
-        episodes: 0,
-        episodes_aired: 0,
-        released_on: null,
-        rating: '',
-        english: [],
-        japanese: [],
-        synonyms: [],
-        license_name_ru: null,
-        duration: 0,
-        description: null,
-        description_html: null,
-        description_source: null,
-        franchise: null,
-        favoured: false,
-        anons: false,
-        ongoing: false,
-        thread_id: 0,
-        topic_id: 0,
-        myanimelist_id: 0,
-        rates_scores_stats: [],
-        rates_statuses_stats: [],
-        updated_at: '',
-        next_episode_at: null,
-        genres: [],
-        studios: [],
-        videos: [],
-        screenshots: [],
-        user_rate: null,
-    }));
+    const mappedAnime: ShikimoriAnime[] = sortedNodes.map((node: FranchiseNode) => {
+        const posterResult = selectBestPoster({ original: node.image_url, preview: node.image_url }, null);
+
+        return {
+            id: node.id,
+            name: node.name,
+            russian: node.name,
+            image: posterResult.image,
+            score: '0.0',
+            url: node.url,
+            kind: node.kind as any,
+            aired_on: node.year ? `${node.year}-01-01` : new Date(node.date * 1000).toISOString(),
+            status: 'released',
+            episodes: 0,
+            episodes_aired: 0,
+            released_on: null,
+            rating: '',
+            english: [],
+            japanese: [],
+            synonyms: [],
+            license_name_ru: null,
+            duration: 0,
+            description: null,
+            description_html: null,
+            description_source: null,
+            franchise: null,
+            favoured: false,
+            anons: false,
+            ongoing: false,
+            thread_id: 0,
+            topic_id: 0,
+            myanimelist_id: 0,
+            rates_scores_stats: [],
+            rates_statuses_stats: [],
+            updated_at: '',
+            next_episode_at: null,
+            genres: [],
+            studios: [],
+            videos: [],
+            screenshots: [],
+            user_rate: null,
+        }
+    });
     
-    cache.set(cacheKey, mappedAnime, cacheTTL);
+    cache.set(cacheKey, mappedAnime, 60 * 60 * 1000);
     return mappedAnime;
 };

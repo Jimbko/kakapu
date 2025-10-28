@@ -32,7 +32,11 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ anime, loading }) => {
     // Prioritize a screenshot for the banner background for better quality and aspect ratio.
     const backgroundImageUrl = anime.screenshots && anime.screenshots.length > 0
         ? anime.screenshots[0].original
-        : anime.image.original;
+        : anime.image?.original;
+        
+    if (!backgroundImageUrl) {
+        return null; // Don't render a hero banner without a background
+    }
 
     return (
         <div 

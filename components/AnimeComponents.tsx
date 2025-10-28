@@ -1,42 +1,46 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { ICONS } from '../constants';
 import { ShikimoriAnime } from '../types';
-import { StatusListKey } from '../contexts/AuthContext';
+import { ICONS } from '../constants';
 
-
-// --- ANIME CARD FOR CAROUSELS ---
+// AnimeCard component
 interface AnimeCardProps {
   anime: ShikimoriAnime;
 }
 
 export const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
-  const ratingColor = parseFloat(anime.score) >= 8.0 ? 'bg-emerald-500' : parseFloat(anime.score) >= 6.5 ? 'bg-yellow-500' : 'bg-red-500';
+  const imageUrl = anime.image?.preview || anime.image?.original;
+  const score = parseFloat(anime.score);
 
   return (
-    <Link to={`/anime/${anime.id}`} className="w-full group relative fade-in block">
-      <div className="aspect-[2/3] bg-zinc-800 rounded-lg overflow-hidden relative">
-        <img
-          src={anime.image.original}
-          alt={anime.russian || anime.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        {parseFloat(anime.score) > 0 && (
-          <div className="absolute top-2 left-2 px-2 py-1 text-xs font-bold text-white rounded-md flex items-center space-x-1 backdrop-blur-md bg-black/50">
-            <span className={`${ratingColor} p-1 rounded-full`}>{ICONS.STAR_FILLED}</span>
-            <span>{anime.score}</span>
+    <Link to={`/anime/${anime.id}`} className="flex flex-col group fade-in">
+      <div className="relative aspect-[2/3] w-full bg-zinc-800 rounded-lg overflow-hidden transition-transform transform group-hover:scale-105">
+        {imageUrl && !isPlaceholderUrl(imageUrl) ? (
+          <img src={imageUrl} alt={anime.russian || anime.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center text-zinc-500">
+            <span>Нет фото</span>
           </div>
         )}
+        {score > 0 && (
+          <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-full px-2 py-0.5 text-xs font-bold text-yellow-300 flex items-center space-x-1">
+            {ICONS.STAR_FILLED}
+            <span>{score.toFixed(1)}</span>
+          </div>
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        <div className="absolute bottom-2 left-2 right-2 text-white text-sm font-semibold opacity-0 group-hover:opacity-100 transition-opacity translate-y-2 group-hover:translate-y-0">
+          <p className="line-clamp-2">{anime.russian || anime.name}</p>
+        </div>
       </div>
-      {/* Fix: Changed hh3 to h3 for correct HTML semantics and to fix JSX error. */}
-      <h3 className="text-sm font-semibold mt-2 text-gray-200 group-hover:text-white transition-colors truncate">
+      <h3 className="mt-2 text-sm text-zinc-300 group-hover:text-white transition-colors truncate">
         {anime.russian || anime.name}
       </h3>
     </Link>
   );
 };
 
-// --- ANIME CAROUSEL FOR HOMEPAGE ---
+// AnimeCarousel component
 interface AnimeCarouselProps {
   title: string;
   animeList: ShikimoriAnime[];
@@ -46,121 +50,45 @@ interface AnimeCarouselProps {
 }
 
 export const AnimeCarousel: React.FC<AnimeCarouselProps> = ({ title, animeList, loading, listType, listTitle }) => {
+  const showSeeAll = listType && listTitle;
+
   return (
-    <section className="mb-16">
+    <section>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-white">{title}</h2>
-        {listType && listTitle && (
-          <Link to={`/list/${listType}/${encodeURIComponent(listTitle)}`} className="text-sm font-medium text-purple-400 hover:text-purple-300 transition-colors">
-            Смотреть все →
+        {showSeeAll && (
+          <Link to={`/list/${listType}/${encodeURIComponent(listTitle!)}`} className="text-sm font-semibold text-purple-400 hover:text-purple-300 transition-colors">
+            Смотреть все
           </Link>
         )}
       </div>
-      <div className="flex space-x-4 overflow-x-auto pb-4 custom-scrollbar">
-        {loading && Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="flex-shrink-0 w-48">
-            <div className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
-            <div className="h-4 bg-zinc-800 rounded mt-2 animate-pulse w-3/4"></div>
-          </div>
-        ))}
-        {!loading && animeList.map(anime => (
-          <div key={anime.id} className="flex-shrink-0 w-48">
-            <AnimeCard anime={anime} />
-          </div>
-        ))}
+      <div className="flex space-x-4 overflow-x-auto pb-4 custom-scrollbar -mx-4 px-4">
+        {loading
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex-shrink-0 w-36 sm:w-40 md:w-48">
+                <div className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
+                <div className="h-4 bg-zinc-800 rounded mt-2 animate-pulse w-3/4"></div>
+              </div>
+            ))
+          : animeList.map(anime => (
+              <div key={anime.id} className="flex-shrink-0 w-36 sm:w-40 md:w-48">
+                <AnimeCard anime={anime} />
+              </div>
+            ))}
       </div>
     </section>
   );
 };
 
-
-// --- ANIME INFO FOR ANIME PAGE ---
-interface AnimeInfoProps {
-    anime: ShikimoriAnime;
-    isFavorite: boolean;
-    onToggleFavorite: () => void;
-    currentStatus: StatusListKey | null;
-    onStatusChange: (newStatus: StatusListKey | null) => void;
-    isLoggedIn: boolean;
-}
-
-const stripHtml = (html: string | null) => {
-    if (!html) return '';
-    const doc = new DOMParser().parseFromString(html, 'text/html');
-    return doc.body.textContent || "";
-}
-
-
-const statusButtons: { status: StatusListKey; icon: React.ReactElement; title: string }[] = [
-    { status: 'watching', icon: ICONS.EYE, title: 'Смотрю' },
-    { status: 'planned', icon: ICONS.BOOKMARK, title: 'Запланировано' },
-    { status: 'completed', icon: ICONS.CHECK, title: 'Просмотрено' },
-    { status: 'dropped', icon: ICONS.TRASH, title: 'Брошено' },
-];
-
-
-export const AnimeInfo: React.FC<AnimeInfoProps> = ({ anime, isFavorite, onToggleFavorite, currentStatus, onStatusChange, isLoggedIn }) => {
-    const description = stripHtml(anime.description_html) || 'Описание отсутствует.';
-
-    return (
-      <div className="flex flex-col md:flex-row gap-8 mt-[-100px] relative z-10 px-4 md:px-0">
-        <div className="md:w-1/4 flex-shrink-0">
-            <img src={anime.image.original} alt={anime.russian} className="w-full aspect-[2/3] object-cover rounded-lg shadow-2xl shadow-black/50" />
-            <div className="mt-4 bg-zinc-900/70 backdrop-blur-sm rounded-lg p-2 flex items-center justify-around space-x-1"
-                title={!isLoggedIn ? "Войдите, чтобы управлять списками" : ""}
-            >
-                {statusButtons.map(({ status, icon, title }) => (
-                    <button
-                        key={status}
-                        title={currentStatus === status ? `Убрать из '${title}'` : `Добавить в '${title}'`}
-                        onClick={() => onStatusChange(currentStatus === status ? null : status)}
-                        className={`p-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                            currentStatus === status
-                                ? 'bg-purple-600 text-white'
-                                : 'text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                        }`}
-                        disabled={!isLoggedIn}
-                    >
-                        {icon}
-                    </button>
-                ))}
-                
-                <div className="w-px h-8 bg-zinc-700 mx-1"></div>
-
-                <button
-                    title={isFavorite ? "Удалить из любимых" : "Добавить в любимые"}
-                    onClick={onToggleFavorite}
-                    className={`p-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        isFavorite
-                            ? 'bg-rose-500 text-white'
-                            : 'text-zinc-400 hover:bg-zinc-700 hover:text-white'
-                    }`}
-                    disabled={!isLoggedIn}
-                >
-                    {ICONS.HEART}
-                </button>
-            </div>
-        </div>
-        <div className="md:w-3/4 bg-zinc-800/50 backdrop-blur-sm rounded-lg p-6 fade-in">
-            <h1 className="text-4xl font-bold text-white">{anime.russian || anime.name}</h1>
-            <h2 className="text-lg text-zinc-400 font-medium">{anime.name}</h2>
-            <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-zinc-400 mt-2 text-sm">
-                <div className="flex items-center space-x-1 font-bold text-yellow-400">
-                    {ICONS.STAR_FILLED}
-                    <span>{anime.score}</span>
-                </div>
-                <span className="font-semibold">{anime.kind?.toUpperCase()}</span>
-                <span className="capitalize">{anime.status.replace('_', ' ')}</span>
-                <span>{new Date(anime.aired_on).getFullYear()}</span>
-                 <span>{anime.episodes || '?'} эп.</span>
-            </div>
-            <p className="text-zinc-300 mt-4 leading-relaxed max-h-48 overflow-y-auto custom-scrollbar pr-2">{description}</p>
-            <div className="flex flex-wrap gap-2 mt-4">
-                {anime.genres.map(genre => (
-                    <span key={genre.id} className="bg-zinc-700 text-zinc-300 text-xs font-semibold px-2.5 py-1 rounded-full">{genre.russian}</span>
-                ))}
-            </div>
-        </div>
-      </div>
-    );
+const isPlaceholderUrl = (url: string | undefined | null): boolean => {
+    if (!url) return true;
+    const lowerUrl = url.toLowerCase();
+    const badPatterns = [
+        '/assets/globals/missing',
+        '404',
+        'not_found',
+        'placeholder',
+        'no_image',
+    ];
+    return badPatterns.some(pattern => lowerUrl.includes(pattern));
 };

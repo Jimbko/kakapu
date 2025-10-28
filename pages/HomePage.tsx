@@ -6,7 +6,6 @@ import { HeroBanner } from '../components/home/HeroBanner';
 import { CommunityActivity } from '../components/home/CommunityActivity';
 import { GenreExplorer } from '../components/home/GenreExplorer';
 import { CallToAction } from '../components/home/CallToAction';
-import { isPlaceholder } from '../services/imageService';
 
 const HomePage: React.FC = () => {
   const [heroAnime, setHeroAnime] = useState<ShikimoriAnime | null>(null);
@@ -35,7 +34,8 @@ const HomePage: React.FC = () => {
                 
                 const heroData = await getAnimeById(String(randomCandidate.id));
 
-                if (heroData.image?.original && !isPlaceholder(heroData.image.original) && heroData.description_html) {
+                // A valid hero must have an image and a description.
+                if (heroData.image && heroData.description_html) {
                     setHeroAnime(heroData);
                     validHeroFound = true;
                 }

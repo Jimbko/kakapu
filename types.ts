@@ -1,3 +1,5 @@
+import { ProcessedImage } from "./services/imageProcessor";
+
 // Fix: Added full content for types.ts to define data structures used in the application.
 export interface User {
   id: string;
@@ -25,12 +27,7 @@ export interface ShikimoriAnime {
     id: number;
     name: string;
     russian: string;
-    image: {
-        original: string;
-        preview: string;
-        x96: string;
-        x48: string;
-    };
+    image: ProcessedImage | null;
     url: string;
     kind: 'tv' | 'movie' | 'ova' | 'ona' | 'special' | 'music' | null;
     score: string;
