@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ShikimoriAnime } from '../types';
 import { getAnimeList } from '../services/shikimori';
-// Fix: Corrected the import path for AnimeCard.
 import { AnimeCard } from '../components/shared/AnimeCard';
 import { FilterSidebar } from '../components/catalog/FilterSidebar';
 

@@ -11,7 +11,6 @@ import { useAuth, StatusListKey } from '../contexts/AuthContext';
 
 
 const AnimeActions: React.FC<{ anime: ShikimoriAnime }> = ({ anime }) => {
-    // Fix: Destructured userLists from useAuth hook to use in useEffect dependency array.
     const { currentUser, openLoginModal, isInList, addToList, removeFromList, getAnimeStatus, setAnimeStatus, addToast, userLists } = useAuth();
     const [isFavorite, setIsFavorite] = useState(false);
 
@@ -32,7 +31,6 @@ const AnimeActions: React.FC<{ anime: ShikimoriAnime }> = ({ anime }) => {
             removeFromList('favorite', anime.id);
             addToast(`"${anime.russian || anime.name}" удалено из любимого`, 'info');
         } else {
-            // Fix: Passed the 'simpleAnime' object as required by the 'addToList' function signature.
             addToList('favorite', simpleAnime);
             addToast(`"${anime.russian || anime.name}" добавлено в любимое`, 'success');
         }

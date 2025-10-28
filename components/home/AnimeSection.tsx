@@ -50,6 +50,13 @@ export const AnimeSection: React.FC<AnimeSectionProps> = ({
       return <p className="text-zinc-500 text-center py-8">{emptyMessage}</p>;
     }
 
+    console.log(`🏠 Rendering section "${title}" with items:`, animeList.map(a => ({
+        id: a.id,
+        name: a.russian || a.name,
+        hasImage: !!a.image,
+        imageUrl: a.image?.original
+    })));
+
     return (
       <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-${columns} gap-4`}>
         {animeList.map(anime => (

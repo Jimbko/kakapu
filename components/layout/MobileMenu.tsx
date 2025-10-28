@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ICONS } from '../../constants';
 import { useAuth } from '../../contexts/AuthContext';
@@ -11,12 +11,6 @@ interface MobileMenuProps {
 
 export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, handleSearchSubmit }) => {
   const { currentUser, openLoginModal } = useAuth();
-  const navigate = useNavigate();
-
-  const handleNavigation = (path: string) => {
-    navigate(path);
-    onClose();
-  };
   
   const NavLink: React.FC<{ to: string; children: React.ReactNode; }> = ({ to, children }) => (
     <Link to={to} onClick={onClose} className="block py-3 px-4 text-lg font-semibold text-zinc-200 hover:bg-zinc-700 rounded-md transition-colors">
@@ -55,8 +49,9 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, handleS
                   {ICONS.SEARCH}
                 </button>
             </form>
-          
-            <nav className="flex-grow">
+
+            <nav className="flex-grow space-y-2">
+              <NavLink to="/">Главная</NavLink>
               <NavLink to="/catalog">Каталог</NavLink>
               <NavLink to="/top100">Топ-100</NavLink>
               <NavLink to="/random">Случайное</NavLink>
@@ -64,25 +59,19 @@ export const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, handleS
             </nav>
 
             <div className="mt-auto">
-                 {currentUser ? (
-                    <Link to={`/profile/${currentUser.nickname}`} onClick={onClose} className="flex items-center space-x-3 p-2 bg-zinc-800 rounded-lg">
-                      <img src={currentUser.avatar} alt="User Avatar" className="w-10 h-10 rounded-full" />
-                      <div>
-                        <p className="font-semibold text-white">{currentUser.nickname}</p>
-                        <p className="text-xs text-zinc-400">Перейти в профиль</p>
-                      </div>
-                    </Link>
-                  ) : (
-                    <button
-                      onClick={() => {
-                          onClose();
-                          openLoginModal();
-                      }}
-                      className="w-full bg-purple-600 hover:bg-purple-700 px-4 py-3 rounded-md text-base font-semibold transition-colors"
-                    >
-                      Войти
-                    </button>
-                  )}
+              {currentUser ? (
+                <Link to={`/profile/${currentUser.nickname}`} onClick={onClose} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-zinc-800">
+                  <img src={currentUser.avatar} alt="User Avatar" className="w-10 h-10 rounded-full" />
+                  <span className="font-semibold text-white">{currentUser.nickname}</span>
+                </Link>
+              ) : (
+                <button
+                  onClick={() => { openLoginModal(); onClose(); }}
+                  className="w-full bg-purple-600 hover:bg-purple-700 px-4 py-3 rounded-md text-sm font-semibold transition-colors"
+                >
+                  Войти
+                </button>
+              )}
             </div>
         </div>
       </div>

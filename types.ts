@@ -1,6 +1,5 @@
 import { ProcessedImage } from "./services/imageProcessor";
 
-// Fix: Added full content for types.ts to define data structures used in the application.
 export interface User {
   id: string;
   name: string;
