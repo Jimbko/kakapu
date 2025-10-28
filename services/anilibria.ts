@@ -1,5 +1,6 @@
 import { ShikimoriAnime } from "../types";
 
+const PROXY_URL = 'https://cors.kurume.moe/';
 const ANILIBRIA_API = 'https://api.anilibria.tv/v3';
 
 export interface AnilibriaResult {
@@ -23,7 +24,8 @@ export interface AnilibriaResult {
 
 const searchAnilibria = async (title: string): Promise<AnilibriaResult | null> => {
     try {
-        const response = await fetch(`${ANILIBRIA_API}/title/search?search=${encodeURIComponent(title)}&limit=1`);
+        // Добавляем прокси перед основным URL
+        const response = await fetch(`${PROXY_URL}${ANILIBRIA_API}/title/search?search=${encodeURIComponent(title)}&limit=1`);
         
         if (!response.ok) {
             console.error(`Anilibria API error: ${response.status}`);
