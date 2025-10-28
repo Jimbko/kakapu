@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ShikimoriAnime } from '../types';
 import { searchAnime } from '../services/shikimori';
-import { AnimeCard } from '../components/AnimeComponents';
+import { AnimeCard } from '../components/shared/AnimeCard';
 
 const SearchPage: React.FC = () => {
     const [searchParams] = useSearchParams();

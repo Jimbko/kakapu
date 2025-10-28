@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserAnimeList, ShikimoriAnime } from '../../types';
 import { getAnimeByIds } from '../../services/shikimori';
-import { AnimeCard } from '../AnimeComponents';
+import { AnimeCard } from '../shared/AnimeCard';
 
 interface ProfileListsProps {
   lists: UserAnimeList;

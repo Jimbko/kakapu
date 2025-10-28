@@ -2,10 +2,13 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ShikimoriAnime } from '../../types';
 import { ICONS } from '../../constants';
+import { ErrorMessage } from '../shared/ErrorMessage';
 
 interface HeroBannerProps {
     anime: ShikimoriAnime | null;
     loading: boolean;
+    error: string | null;
+    onRetry?: () => void;
 }
 
 const stripHtml = (html: string | null) => {
@@ -14,28 +17,37 @@ const stripHtml = (html: string | null) => {
     return doc.body.textContent || "";
 }
 
-export const HeroBanner: React.FC<HeroBannerProps> = ({ anime, loading }) => {
+export const HeroBanner: React.FC<HeroBannerProps> = ({ anime, loading, error, onRetry }) => {
+    const bannerContainerClasses = "h-[50vh] w-full rounded-2xl flex items-center justify-center -mt-8";
+
     if (loading) {
         return (
-            <div className="h-[50vh] w-full bg-zinc-800 rounded-2xl animate-pulse flex items-center justify-center -mt-8">
+            <div className={`${bannerContainerClasses} bg-zinc-800 animate-pulse`}>
                 <div className="w-12 h-12 border-4 border-dashed rounded-full animate-spin border-purple-500"></div>
             </div>
         );
     }
 
+    if (error) {
+        return (
+             <div className={`${bannerContainerClasses} bg-zinc-800`}>
+                <ErrorMessage message={error} onRetry={onRetry} />
+            </div>
+        )
+    }
+
     if (!anime) {
-        return null; // Don't render if anime data is not available
+        return null;
     }
 
     const description = stripHtml(anime.description_html);
 
-    // Prioritize a screenshot for the banner background for better quality and aspect ratio.
     const backgroundImageUrl = anime.screenshots && anime.screenshots.length > 0
         ? anime.screenshots[0].original
         : anime.image?.original;
         
     if (!backgroundImageUrl) {
-        return null; // Don't render a hero banner without a background
+        return null;
     }
 
     return (

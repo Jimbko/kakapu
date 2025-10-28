@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { ShikimoriAnime } from '../types';
 import { getAnimeList } from '../services/shikimori';
-import { AnimeCard } from '../components/AnimeComponents';
+// Fix: Corrected the import path for AnimeCard.
+import { AnimeCard } from '../components/shared/AnimeCard';
 import { FilterSidebar } from '../components/catalog/FilterSidebar';
 
 // --- Child Component for displaying anime grid ---

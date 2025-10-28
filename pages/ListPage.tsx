@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ShikimoriAnime } from '../types';
 import { getAnimeList } from '../services/shikimori';
-import { AnimeCard } from '../components/AnimeComponents';
+import { AnimeCard } from '../components/shared/AnimeCard';
 
 const ListPage: React.FC = () => {
     const { type, title } = useParams<{ type: string; title: string }>();
