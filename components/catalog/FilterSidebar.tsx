@@ -62,8 +62,8 @@ const GenreFilter: React.FC = () => {
         setError(null);
         getGenres()
             .then(allGenres => {
-                // Revert: Temporarily remove the filter for anime-only genres to debug empty list issue.
-                setGenres(allGenres);
+                const animeGenres = allGenres.filter(g => g.kind?.includes('anime'));
+                setGenres(animeGenres);
             })
             .catch(err => {
                 console.error("Failed to load genres:", err);

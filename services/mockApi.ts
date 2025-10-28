@@ -1,4 +1,3 @@
-// Fix: Added full content for services/mockApi.ts to provide mock data for comments.
 import { Comment, UserProfile, UserAnimeList } from '../types';
 
 const mockUsers = {
@@ -44,8 +43,8 @@ const mockComments: Comment[] = [
 const mockUserProfile: UserProfile = {
     id: 'dragger1337',
     nickname: 'dragger1337',
-    avatar: 'https://i.imgur.com/tLp2d62.jpeg',
-    coverPhoto: 'https://i.imgur.com/eB4s94k.jpeg',
+    avatar: 'https://i.pravatar.cc/150?u=dragger1337',
+    coverPhoto: 'https://images.alphacoders.com/131/1317676.jpeg',
     registrationDate: '31.05.2024',
     birthday: '11.09.2001',
     gender: 'Мужской',
@@ -55,7 +54,7 @@ const mockUserProfile: UserProfile = {
 };
 
 const mockUserAnimeLists: UserAnimeList = {
-    watching: [],
+    watching: [{id: 52991, name: 'sousou-no-frieren'}],
     planned: [{id: 136, name: 'hunter-x-hunter-2011'}, {id: 21, name: 'one-piece'}],
     completed: [{id: 9253, name: 'steins-gate'}, {id: 5114, name: 'fullmetal-alchemist-brotherhood'}],
     dropped: [{id: 30276, name: 'one-punch-man'}],

@@ -14,7 +14,7 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
   const ratingColor = parseFloat(anime.score) >= 8.0 ? 'bg-emerald-500' : parseFloat(anime.score) >= 6.5 ? 'bg-yellow-500' : 'bg-red-500';
 
   return (
-    <Link to={`/anime/${anime.id}`} className="flex-shrink-0 w-48 group relative fade-in">
+    <Link to={`/anime/${anime.id}`} className="w-full group relative fade-in block">
       <div className="aspect-[2/3] bg-zinc-800 rounded-lg overflow-hidden relative">
         <img
           src={anime.image.original}
@@ -60,7 +60,9 @@ export const AnimeCarousel: React.FC<AnimeCarouselProps> = ({ title, animeList, 
           </div>
         ))}
         {!loading && animeList.map(anime => (
-          <AnimeCard key={anime.id} anime={anime} />
+          <div key={anime.id} className="flex-shrink-0 w-48">
+            <AnimeCard anime={anime} />
+          </div>
         ))}
       </div>
     </section>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { UserAnimeList, ShikimoriAnime } from '../../types';
 import { getAnimeByIds } from '../../services/shikimori';
+import { AnimeCard } from '../AnimeComponents';
 
 interface ProfileListsProps {
   lists: UserAnimeList;
@@ -25,13 +25,16 @@ const ListTabContent: React.FC<{ list: { id: number; name: string }[] }> = ({ li
     const fetchDetails = async () => {
       if (list.length === 0) {
         setLoading(false);
+        setAnimeDetails([]);
         return;
       }
       setLoading(true);
       const ids = list.map(item => item.id);
       try {
         const data = await getAnimeByIds(ids);
-        setAnimeDetails(data);
+        // Ensure the order is the same as the input list
+        const sortedData = ids.map(id => data.find(anime => anime.id === id)).filter(Boolean) as ShikimoriAnime[];
+        setAnimeDetails(sortedData);
       } catch (error) {
         console.error("Failed to fetch anime details for list", error);
       } finally {
@@ -42,9 +45,12 @@ const ListTabContent: React.FC<{ list: { id: number; name: string }[] }> = ({ li
   }, [list]);
 
   if (loading) {
-    return <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 p-4">
+    return <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4">
         {Array.from({ length: list.length }).map((_, i) => (
-             <div key={i} className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
+             <div key={i} className="flex-shrink-0">
+                <div className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
+                <div className="h-4 bg-zinc-800 rounded mt-2 animate-pulse w-3/4"></div>
+            </div>
         ))}
     </div>;
   }
@@ -54,17 +60,9 @@ const ListTabContent: React.FC<{ list: { id: number; name: string }[] }> = ({ li
   }
 
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 p-4">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4">
       {animeDetails.map(anime => (
-        <Link to={`/anime/${anime.id}`} key={anime.id} className="group">
-          <div className="aspect-[2/3] bg-zinc-800 rounded-lg overflow-hidden">
-            <img 
-              src={anime.image.preview} 
-              alt={anime.russian}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-            />
-          </div>
-        </Link>
+        <AnimeCard key={anime.id} anime={anime} />
       ))}
     </div>
   );

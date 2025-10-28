@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ShikimoriAnime } from '../types';
-import { getAnimeList } from '../services/shikimori';
+import { getAnimeList, getAnimeById } from '../services/shikimori';
 import { AnimeCarousel } from '../components/AnimeComponents';
 import { HeroBanner } from '../components/home/HeroBanner';
 import { CommunityActivity } from '../components/home/CommunityActivity';
 import { GenreExplorer } from '../components/home/GenreExplorer';
 import { CallToAction } from '../components/home/CallToAction';
+import { isPlaceholder } from '../services/imageService';
 
 const HomePage: React.FC = () => {
   const [heroAnime, setHeroAnime] = useState<ShikimoriAnime | null>(null);
@@ -19,15 +20,39 @@ const HomePage: React.FC = () => {
 
   useEffect(() => {
     const fetchHero = async () => {
-      try {
         setHeroLoading(true);
-        const [heroData] = await getAnimeList({ limit: 1, order: 'ranked' });
-        setHeroAnime(heroData);
-      } catch (error) {
-        console.error("Failed to fetch hero anime:", error);
-      } finally {
+        let validHeroFound = false;
+        const MAX_ATTEMPTS = 5;
+
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS && !validHeroFound; attempt++) {
+            try {
+                const randomPage = Math.floor(Math.random() * 10) + 1;
+                const candidates = await getAnimeList({ limit: 10, order: 'popularity', page: randomPage });
+                
+                if (!candidates || candidates.length === 0) continue;
+
+                const randomCandidate = candidates[Math.floor(Math.random() * candidates.length)];
+                
+                const heroData = await getAnimeById(String(randomCandidate.id));
+
+                if (heroData.image?.original && !isPlaceholder(heroData.image.original) && heroData.description_html) {
+                    setHeroAnime(heroData);
+                    validHeroFound = true;
+                }
+            } catch (error) {
+                console.warn(`Failed to fetch hero on attempt ${attempt}:`, error);
+                if (attempt < MAX_ATTEMPTS) {
+                    await new Promise(res => setTimeout(res, 200));
+                }
+            }
+        }
+        
+        if (!validHeroFound) {
+            console.error("Could not find a valid hero anime after all attempts.");
+            setHeroAnime(null);
+        }
+
         setHeroLoading(false);
-      }
     };
 
     const fetchCarousels = async () => {

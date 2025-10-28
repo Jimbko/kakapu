@@ -29,10 +29,15 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({ anime, loading }) => {
 
     const description = stripHtml(anime.description_html);
 
+    // Prioritize a screenshot for the banner background for better quality and aspect ratio.
+    const backgroundImageUrl = anime.screenshots && anime.screenshots.length > 0
+        ? anime.screenshots[0].original
+        : anime.image.original;
+
     return (
         <div 
             className="h-[50vh] w-full rounded-2xl bg-cover bg-center flex items-end p-8 relative overflow-hidden -mt-8"
-            style={{ backgroundImage: `url(${anime.image.original})` }}
+            style={{ backgroundImage: `url(${backgroundImageUrl})` }}
         >
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent"></div>
             <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent"></div>
