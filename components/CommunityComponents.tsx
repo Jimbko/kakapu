@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Comment } from '../types';
+import { Comment, User } from '../types';
 import { getCommentsByEpisodeId } from '../services/mockApi';
 import { ICONS, COMMENT_COLLAPSE_THRESHOLD } from '../constants';
+import { useAuth } from '../contexts/AuthContext';
 
 interface CommentComponentProps {
   comment: Comment;
@@ -28,7 +29,7 @@ export const CommentComponent: React.FC<CommentComponentProps> = ({ comment }) =
   const scoreColor = score > 0 ? 'text-emerald-400' : score < 0 ? 'text-red-500' : 'text-zinc-400';
 
   return (
-    <div className="flex space-x-4 mt-4">
+    <div className="flex space-x-4 mt-4 fade-in">
       <img src={comment.user.avatar} alt={comment.user.name} className="w-10 h-10 rounded-full flex-shrink-0 mt-1" />
       <div className="flex-grow">
         <div className="flex items-center space-x-2 text-sm">
@@ -72,6 +73,8 @@ interface CommentSectionProps {
 export const CommentSection: React.FC<CommentSectionProps> = ({ episodeId }) => {
     const [comments, setComments] = useState<Comment[]>([]);
     const [loading, setLoading] = useState(true);
+    const [newComment, setNewComment] = useState('');
+    const { currentUser, openLoginModal, addToast } = useAuth();
 
     useEffect(() => {
         const fetchComments = async () => {
@@ -83,23 +86,68 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ episodeId }) => 
         fetchComments();
     }, [episodeId]);
 
+    const submitComment = () => {
+        if (!currentUser) {
+            openLoginModal();
+            return;
+        }
+        if (!newComment.trim()) return;
+
+        const comment: Comment = {
+            id: `temp-${Date.now()}`,
+            user: {
+                id: currentUser.id,
+                name: currentUser.nickname,
+                avatar: currentUser.avatar
+            },
+            timestamp: 'Только что',
+            content: newComment.trim(),
+            score: 0,
+            replies: []
+        };
+        
+        setComments(prevComments => [comment, ...prevComments]);
+        setNewComment('');
+        addToast("Ваш комментарий опубликован!", 'success');
+    };
+
+    const handleCommentSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        submitComment();
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            submitComment();
+        }
+    };
+
     if (loading) return <div className="text-center p-8">Загрузка комментариев...</div>
 
     return (
         <div>
             <h3 className="text-2xl font-bold mb-4 text-white">Обсуждение</h3>
-             <div className="mb-6">
+             <form onSubmit={handleCommentSubmit} className="mb-6">
                 <textarea 
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-3 text-zinc-200 focus:ring-2 focus:ring-purple-500 focus:outline-none transition-shadow"
-                    placeholder="Присоединяйтесь к обсуждению... Помните о правилах свободы слова."
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-3 text-zinc-200 focus:ring-2 focus:ring-purple-500 focus:outline-none transition-shadow disabled:opacity-60"
+                    placeholder={currentUser ? "Присоединяйтесь к обсуждению... (Shift+Enter для новой строки)" : "Войдите, чтобы оставить комментарий."}
                     rows={4}
+                    disabled={!currentUser}
                 ></textarea>
                 <div className="flex justify-end">
-                    <button className="mt-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-md font-semibold transition-colors transform hover:scale-105">
+                    <button 
+                        type="submit"
+                        className="mt-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-md font-semibold transition-colors transform hover:scale-105 disabled:bg-zinc-600 disabled:cursor-not-allowed disabled:scale-100"
+                        disabled={!newComment.trim() || !currentUser}
+                    >
                         Отправить
                     </button>
                 </div>
-            </div>
+            </form>
             {comments.map(comment => <CommentComponent key={comment.id} comment={comment} />)}
         </div>
     );

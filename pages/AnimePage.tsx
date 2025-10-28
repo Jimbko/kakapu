@@ -132,11 +132,11 @@ const AnimePage: React.FC = () => {
         isLoggedIn={!!currentUser}
       />
       
-      <div className="mt-12">
+      <div className="mt-12 max-w-5xl mx-auto">
         <VideoPlayer kodikData={kodikData} loading={playerLoading} />
       </div>
 
-      <div className="mt-12">
+      <div className="mt-12 max-w-5xl mx-auto">
         <CommentSection episodeId={`${id}-ep1`} />
       </div>
 
