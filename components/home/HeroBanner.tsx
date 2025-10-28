@@ -1,0 +1,62 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { ShikimoriAnime } from '../../types';
+import { ICONS } from '../../constants';
+
+interface HeroBannerProps {
+    anime: ShikimoriAnime | null;
+    loading: boolean;
+}
+
+const stripHtml = (html: string | null) => {
+    if (!html) return '';
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.body.textContent || "";
+}
+
+export const HeroBanner: React.FC<HeroBannerProps> = ({ anime, loading }) => {
+    if (loading) {
+        return (
+            <div className="h-[50vh] w-full bg-zinc-800 rounded-2xl animate-pulse flex items-center justify-center -mt-8">
+                <div className="w-12 h-12 border-4 border-dashed rounded-full animate-spin border-purple-500"></div>
+            </div>
+        );
+    }
+
+    if (!anime) {
+        return null; // Don't render if anime data is not available
+    }
+
+    const description = stripHtml(anime.description_html);
+
+    return (
+        <div 
+            className="h-[50vh] w-full rounded-2xl bg-cover bg-center flex items-end p-8 relative overflow-hidden -mt-8"
+            style={{ backgroundImage: `url(${anime.image.original})` }}
+        >
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent"></div>
+            <div className="relative z-10 text-white max-w-2xl fade-in">
+                <h1 className="text-4xl md:text-5xl font-black tracking-tight">{anime.russian}</h1>
+                <div className="flex items-center flex-wrap gap-x-4 gap-y-2 text-zinc-300 mt-2 text-sm">
+                    <div className="flex items-center space-x-1 font-bold text-yellow-400">
+                        {ICONS.STAR_FILLED}
+                        <span>{anime.score}</span>
+                    </div>
+                    <span>{anime.kind?.toUpperCase()}</span>
+                    <span>{new Date(anime.aired_on).getFullYear()}</span>
+                    <span>{anime.episodes || '?'} эп.</span>
+                </div>
+                <p className="mt-4 text-sm text-zinc-300 leading-relaxed line-clamp-3">
+                    {description || 'Описание отсутствует.'}
+                </p>
+                <Link 
+                    to={`/anime/${anime.id}`}
+                    className="mt-6 inline-block bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg transition-transform transform hover:scale-105"
+                >
+                    Подробнее
+                </Link>
+            </div>
+        </div>
+    );
+};

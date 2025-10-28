@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const Header: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
-  const { currentUser, login } = useAuth();
+  const { currentUser, openLoginModal } = useAuth();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +50,7 @@ const Header: React.FC = () => {
             </Link>
           ) : (
             <button
-              onClick={login}
+              onClick={openLoginModal}
               className="bg-purple-600 hover:bg-purple-700 px-4 py-1.5 rounded-md text-sm font-semibold transition-colors"
             >
               Войти

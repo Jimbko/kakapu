@@ -13,9 +13,10 @@ const processAnimeData = (anime: ShikimoriAnime): ShikimoriAnime => {
     // Deep copy to avoid mutating the original data from caches or other sources.
     const processedAnime = JSON.parse(JSON.stringify(anime));
 
-    // Delegate image and screenshot processing to the dedicated imageService.
-    processedAnime.image = processAnimeImages(anime);
-    processedAnime.screenshots = processScreenshots(anime.screenshots);
+    // Delegate image and screenshot processing to the dedicated imageService,
+    // ensuring we operate on the newly created copy.
+    processedAnime.image = processAnimeImages(processedAnime);
+    processedAnime.screenshots = processScreenshots(processedAnime.screenshots);
     
     return processedAnime;
 };
@@ -90,9 +91,9 @@ export const getAnimeById = async (id: string): Promise<ShikimoriAnime> => {
     // Step 1: Fetch raw anime data.
     const anime = await fetchData<ShikimoriAnime>(`/api/animes/${id}`, false);
 
-    const absolutePosterUrl = anime.image.original.startsWith('http')
+    const absolutePosterUrl = anime.image?.original ? (anime.image.original.startsWith('http')
         ? anime.image.original
-        : `${API_BASE}${anime.image.original}`;
+        : `${API_BASE}${anime.image.original}`) : '';
     
     // Step 2: If the poster is a placeholder, attempt fallbacks.
     if (isPlaceholder(absolutePosterUrl)) {
@@ -120,14 +121,16 @@ export const getAnimeById = async (id: string): Promise<ShikimoriAnime> => {
                 const animeListResponse = await fetchData<ShikimoriAnime[]>(`/api/animes?ids=${id}&limit=1`, false);
                 if (animeListResponse && animeListResponse.length > 0) {
                     const refreshedAnime = animeListResponse[0];
-                    const refreshedPosterUrl = refreshedAnime.image.original.startsWith('http') 
-                        ? refreshedAnime.image.original 
-                        : `${API_BASE}${refreshedAnime.image.original}`;
+                    if (refreshedAnime.image && refreshedAnime.image.original) {
+                        const refreshedPosterUrl = refreshedAnime.image.original.startsWith('http') 
+                            ? refreshedAnime.image.original 
+                            : `${API_BASE}${refreshedAnime.image.original}`;
 
-                    // If the new URL is not a placeholder, we've found the real poster.
-                    if (!isPlaceholder(refreshedPosterUrl)) {
-                        console.log(`Successfully fetched updated poster URL. Overwriting stale image data.`);
-                        anime.image = refreshedAnime.image;
+                        // If the new URL is not a placeholder, we've found the real poster.
+                        if (!isPlaceholder(refreshedPosterUrl)) {
+                            console.log(`Successfully fetched updated poster URL. Overwriting stale image data.`);
+                            anime.image = refreshedAnime.image;
+                        }
                     }
                 }
             } catch (error) {

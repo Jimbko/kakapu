@@ -6,7 +6,7 @@ import { findKodikPlayer } from '../services/kodik';
 import { AnimeInfo } from '../components/AnimeComponents';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { CommentSection } from '../components/CommunityComponents';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, StatusListKey } from '../contexts/AuthContext';
 
 const AnimePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,31 +16,45 @@ const AnimePage: React.FC = () => {
   const [playerLoading, setPlayerLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { currentUser, isInList, addToList, removeFromList } = useAuth();
+  const { currentUser, isInList, addToList, removeFromList, addToast, getAnimeStatus, setAnimeStatus, openLoginModal } = useAuth();
   const animeIdNum = Number(id);
 
   const isFavorite = isInList('favorite', animeIdNum);
-  const isPlanned = isInList('planned', animeIdNum);
-
+  const currentStatus = getAnimeStatus(animeIdNum);
+  
   const handleToggleFavorite = () => {
+    if (!currentUser) { openLoginModal(); return; }
     if (!anime) return;
     const animeData = { id: anime.id, name: anime.name };
     if (isFavorite) {
       removeFromList('favorite', anime.id);
+      addToast("Аниме удалено из 'Любимых'", 'info');
     } else {
       addToList('favorite', animeData);
+      addToast("Аниме добавлено в 'Любимые'", 'success');
     }
   };
 
-  const handleTogglePlanned = () => {
+  const handleStatusChange = (newStatus: StatusListKey | null) => {
+    if (!currentUser) { openLoginModal(); return; }
     if (!anime) return;
     const animeData = { id: anime.id, name: anime.name };
-    if (isPlanned) {
-      removeFromList('planned', anime.id);
+    const statusMap: Record<StatusListKey, string> = {
+      watching: 'Смотрю',
+      planned: 'Запланировано',
+      completed: 'Просмотрено',
+      dropped: 'Брошено'
+    }
+
+    setAnimeStatus(animeData, newStatus);
+    
+    if (newStatus) {
+        addToast(`Статус изменен на '${statusMap[newStatus]}'`, 'success');
     } else {
-      addToList('planned', animeData);
+        addToast("Аниме убрано из списков", 'info');
     }
   };
+
 
   // Effect for fetching main anime data
   useEffect(() => {
@@ -112,9 +126,9 @@ const AnimePage: React.FC = () => {
       <AnimeInfo 
         anime={anime} 
         isFavorite={isFavorite}
-        isPlanned={isPlanned}
         onToggleFavorite={handleToggleFavorite}
-        onTogglePlanned={handleTogglePlanned}
+        currentStatus={currentStatus}
+        onStatusChange={handleStatusChange}
         isLoggedIn={!!currentUser}
       />
       

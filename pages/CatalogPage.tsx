@@ -26,7 +26,7 @@ const AnimeGrid: React.FC<{
         <div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {animeList.map(anime => (
-                    <AnimeCard key={`${anime.id}-${anime.name}`} anime={anime} />
+                    <AnimeCard key={anime.id} anime={anime} />
                 ))}
                 {loading && Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="flex-shrink-0">
