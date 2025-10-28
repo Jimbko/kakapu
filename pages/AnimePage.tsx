@@ -6,6 +6,7 @@ import { findKodikPlayer } from '../services/kodik';
 import { AnimeInfo } from '../components/AnimeComponents';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { CommentSection } from '../components/CommunityComponents';
+import { useAuth } from '../contexts/AuthContext';
 
 const AnimePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -14,6 +15,32 @@ const AnimePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [playerLoading, setPlayerLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const { currentUser, isInList, addToList, removeFromList } = useAuth();
+  const animeIdNum = Number(id);
+
+  const isFavorite = isInList('favorite', animeIdNum);
+  const isPlanned = isInList('planned', animeIdNum);
+
+  const handleToggleFavorite = () => {
+    if (!anime) return;
+    const animeData = { id: anime.id, name: anime.name };
+    if (isFavorite) {
+      removeFromList('favorite', anime.id);
+    } else {
+      addToList('favorite', animeData);
+    }
+  };
+
+  const handleTogglePlanned = () => {
+    if (!anime) return;
+    const animeData = { id: anime.id, name: anime.name };
+    if (isPlanned) {
+      removeFromList('planned', anime.id);
+    } else {
+      addToList('planned', animeData);
+    }
+  };
 
   // Effect for fetching main anime data
   useEffect(() => {
@@ -82,7 +109,14 @@ const AnimePage: React.FC = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/70 to-transparent"></div>
       </div>
 
-      <AnimeInfo anime={anime} />
+      <AnimeInfo 
+        anime={anime} 
+        isFavorite={isFavorite}
+        isPlanned={isPlanned}
+        onToggleFavorite={handleToggleFavorite}
+        onTogglePlanned={handleTogglePlanned}
+        isLoggedIn={!!currentUser}
+      />
       
       <div className="mt-12">
         <VideoPlayer kodikData={kodikData} loading={playerLoading} />

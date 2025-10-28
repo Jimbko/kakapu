@@ -1,4 +1,4 @@
-import { ShikimoriAnime } from "../types";
+import { ShikimoriAnime, Genre } from "../types";
 
 const API_BASE = 'https://shikimori.one';
 
@@ -27,18 +27,20 @@ export const getAnimeList = (
         kind?: string,
         status?: string,
         season?: string,
-        score?: number
+        score?: number,
+        genre?: string,
     } = {}
 ): Promise<ShikimoriAnime[]> => {
     const params = new URLSearchParams({
         page: String(options.page || 1),
-        limit: String(options.limit || 10),
+        limit: String(options.limit || 20),
         order: options.order || 'ranked',
     });
     if (options.kind) params.set('kind', options.kind);
     if (options.status) params.set('status', options.status);
     if (options.season) params.set('season', options.season);
     if (options.score) params.set('score', String(options.score));
+    if (options.genre) params.set('genre', options.genre);
 
     return fetchData<ShikimoriAnime[]>(`/api/animes?${params.toString()}`);
 };
@@ -55,3 +57,16 @@ export const getAnimeByIds = (ids: number[]): Promise<ShikimoriAnime[]> => {
     });
     return fetchData<ShikimoriAnime[]>(`/api/animes?${params.toString()}`);
 }
+
+export const searchAnime = (query: string, limit: number = 20): Promise<ShikimoriAnime[]> => {
+    const params = new URLSearchParams({
+        search: query,
+        limit: String(limit),
+        kind: 'tv,movie,ova,ona,special,music'
+    });
+    return fetchData<ShikimoriAnime[]>(`/api/animes?${params.toString()}`);
+};
+
+export const getGenres = (): Promise<Genre[]> => {
+    return fetchData<Genre[]>('/api/genres');
+};

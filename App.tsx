@@ -8,21 +8,28 @@ import ListPage from './pages/ListPage';
 import Top100Page from './pages/Top100Page';
 import RandomAnimePage from './pages/RandomAnimePage';
 import CommunityPage from './pages/CommunityPage';
+import SearchPage from './pages/SearchPage';
+import CatalogPage from './pages/CatalogPage';
+import { AuthProvider } from './contexts/AuthContext';
 
 const App: React.FC = () => {
   return (
     <HashRouter>
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<HomePage />} />
-          <Route path="anime/:id" element={<AnimePage />} />
-          <Route path="profile/:username" element={<ProfilePage />} />
-          <Route path="list/:type/:title" element={<ListPage />} />
-          <Route path="top100" element={<Top100Page />} />
-          <Route path="random" element={<RandomAnimePage />} />
-          <Route path="community" element={<CommunityPage />} />
-        </Route>
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<HomePage />} />
+            <Route path="anime/:id" element={<AnimePage />} />
+            <Route path="profile/:username" element={<ProfilePage />} />
+            <Route path="list/:type/:title" element={<ListPage />} />
+            <Route path="top100" element={<Top100Page />} />
+            <Route path="random" element={<RandomAnimePage />} />
+            <Route path="community" element={<CommunityPage />} />
+            <Route path="search" element={<SearchPage />} />
+            <Route path="catalog" element={<CatalogPage />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
     </HashRouter>
   );
 };

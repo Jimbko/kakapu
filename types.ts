@@ -101,10 +101,15 @@ export interface UserProfile {
   };
 }
 
+export interface SimpleAnime {
+  id: number;
+  name: string;
+}
+
 export interface UserAnimeList {
-  watching: { id: number; name: string }[];
-  planned: { id: number; name: string }[];
-  completed: { id: number; name: string }[];
-  dropped: { id: number; name: string }[];
-  favorite: { id: number; name: string }[];
+  watching: SimpleAnime[];
+  planned: SimpleAnime[];
+  completed: SimpleAnime[];
+  dropped: SimpleAnime[];
+  favorite: SimpleAnime[];
 }

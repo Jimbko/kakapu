@@ -68,6 +68,11 @@ export const AnimeCarousel: React.FC<AnimeCarouselProps> = ({ title, animeList, 
 // --- ANIME INFO FOR ANIME PAGE ---
 interface AnimeInfoProps {
     anime: ShikimoriAnime;
+    isFavorite: boolean;
+    isPlanned: boolean;
+    onToggleFavorite: () => void;
+    onTogglePlanned: () => void;
+    isLoggedIn: boolean;
 }
 
 const stripHtml = (html: string | null) => {
@@ -76,8 +81,16 @@ const stripHtml = (html: string | null) => {
     return doc.body.textContent || "";
 }
 
-export const AnimeInfo: React.FC<AnimeInfoProps> = ({ anime }) => {
+export const AnimeInfo: React.FC<AnimeInfoProps> = ({ anime, isFavorite, isPlanned, onToggleFavorite, onTogglePlanned, isLoggedIn }) => {
     const description = stripHtml(anime.description_html) || 'Описание отсутствует.';
+
+    const favoriteButtonClass = isFavorite
+        ? "bg-rose-500 hover:bg-rose-600 text-white"
+        : "bg-purple-600 hover:bg-purple-700 text-white";
+    
+    const plannedButtonClass = isPlanned
+        ? "bg-sky-500 hover:bg-sky-600 text-white"
+        : "bg-zinc-700 hover:bg-zinc-600 text-zinc-200";
 
     return (
       <div className="flex flex-col md:flex-row gap-8 mt-[-100px] relative z-10 px-4 md:px-0">
@@ -104,13 +117,21 @@ export const AnimeInfo: React.FC<AnimeInfoProps> = ({ anime }) => {
                 ))}
             </div>
              <div className="flex space-x-3 mt-6">
-                <button className="bg-purple-600 hover:bg-purple-700 px-8 py-3 rounded-md font-semibold flex items-center space-x-2 transition-transform transform hover:scale-105">
+                <button 
+                    onClick={onToggleFavorite}
+                    disabled={!isLoggedIn}
+                    className={`${favoriteButtonClass} px-8 py-3 rounded-md font-semibold flex items-center space-x-2 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
                     {ICONS.HEART}
-                    <span>В любимые</span>
+                    <span>{isFavorite ? "В любимых" : "В любимые"}</span>
                 </button>
-                <button className="bg-zinc-700 hover:bg-zinc-600 px-8 py-3 rounded-md font-semibold flex items-center space-x-2 transition-colors">
+                <button
+                    onClick={onTogglePlanned}
+                    disabled={!isLoggedIn}
+                    className={`${plannedButtonClass} px-8 py-3 rounded-md font-semibold flex items-center space-x-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
                     {ICONS.BOOKMARK}
-                    <span>Смотреть позже</span>
+                    <span>{isPlanned ? "В планах" : "Смотреть позже"}</span>
                 </button>
             </div>
         </div>
