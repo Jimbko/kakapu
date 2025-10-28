@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { ShikimoriAnime } from '../types';
+import { ShikimoriAnime, KodikSearchResult } from '../types';
 import { getAnimeById } from '../services/shikimori';
-import { findAnilibriaPlayer, AnilibriaResult } from '../services/anilibria';
+import { findKodikPlayer } from '../services/kodik';
 import { AnimeInfo } from '../components/AnimeComponents';
 import { VideoPlayer } from '../components/VideoPlayer';
 import { CommentSection } from '../components/CommunityComponents';
@@ -10,10 +10,12 @@ import { CommentSection } from '../components/CommunityComponents';
 const AnimePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [anime, setAnime] = useState<ShikimoriAnime | null>(null);
-  const [anilibriaData, setAnilibriaData] = useState<AnilibriaResult | null>(null);
+  const [kodikData, setKodikData] = useState<KodikSearchResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [playerLoading, setPlayerLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Effect for fetching main anime data
   useEffect(() => {
     if (!id) return;
 
@@ -24,9 +26,6 @@ const AnimePage: React.FC = () => {
         
         const shikimoriData = await getAnimeById(id);
         setAnime(shikimoriData);
-        
-        const anilibriaResult = await findAnilibriaPlayer(shikimoriData);
-        setAnilibriaData(anilibriaResult);
 
       } catch (err) {
         setError("Не удалось загрузить данные об аниме. Попробуйте обновить страницу.");
@@ -38,6 +37,21 @@ const AnimePage: React.FC = () => {
 
     fetchAnimeData();
   }, [id]);
+
+  // Effect for fetching player data, runs after anime data is loaded
+  useEffect(() => {
+    if (!anime) return;
+
+    const fetchPlayerData = async () => {
+      setPlayerLoading(true);
+      const kodikResult = await findKodikPlayer(anime);
+      setKodikData(kodikResult);
+      setPlayerLoading(false);
+    };
+
+    fetchPlayerData();
+  }, [anime]);
+
 
   if (loading) {
     return (
@@ -71,7 +85,7 @@ const AnimePage: React.FC = () => {
       <AnimeInfo anime={anime} />
       
       <div className="mt-12">
-        <VideoPlayer anilibriaData={anilibriaData} />
+        <VideoPlayer kodikData={kodikData} loading={playerLoading} />
       </div>
 
       <div className="mt-12">

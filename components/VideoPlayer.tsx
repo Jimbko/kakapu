@@ -1,54 +1,25 @@
-import React, { useEffect, useRef } from 'react';
-import { AnilibriaResult } from '../services/anilibria';
-
-// @ts-ignore HLS is loaded from a script tag
-const Hls = window.Hls;
+import React from 'react';
+import { KodikSearchResult } from '../types';
 
 interface VideoPlayerProps {
-  anilibriaData: AnilibriaResult | null;
+  kodikData: KodikSearchResult | null;
+  loading: boolean;
 }
 
-export const VideoPlayer: React.FC<VideoPlayerProps> = ({ anilibriaData }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
+export const VideoPlayer: React.FC<VideoPlayerProps> = ({ kodikData, loading }) => {
+  if (loading) {
+    return (
+     <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
+       <div className="text-center">
+         <div className="w-12 h-12 border-4 border-dashed rounded-full animate-spin border-purple-500 mx-auto mb-4"></div>
+         <h2 className="text-xl font-bold text-zinc-400">Ищем плеер...</h2>
+         <p className="text-zinc-500">Пожалуйста, подождите.</p>
+       </div>
+     </div>
+   );
+ }
 
-  useEffect(() => {
-    if (!anilibriaData || !videoRef.current) return;
-
-    const episodes = anilibriaData.player.episodes;
-    const firstEpisodeKey = Object.keys(episodes)[0];
-    if (!firstEpisodeKey) {
-        console.error("Anilibria: No episodes found in data.");
-        return;
-    }
-
-    const hlsUrls = episodes[firstEpisodeKey].hls;
-    const videoSrc = hlsUrls.fhd || hlsUrls.hd || hlsUrls.sd;
-
-    if (!videoSrc) {
-        console.error("Anilibria: No HLS source found for the first episode.");
-        return;
-    }
-    
-    const fullVideoSrc = `https://anilibria.tv${videoSrc}`;
-    const videoElement = videoRef.current;
-    let hls: any;
-
-    if (Hls && Hls.isSupported()) {
-      hls = new Hls();
-      hls.loadSource(fullVideoSrc);
-      hls.attachMedia(videoElement);
-    } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-      videoElement.src = fullVideoSrc;
-    }
-
-    return () => {
-      if (hls) {
-        hls.destroy();
-      }
-    };
-  }, [anilibriaData]);
-
-  if (!anilibriaData) {
+  if (!kodikData || !kodikData.link) {
     return (
       <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
         <div className="text-center">
@@ -59,9 +30,20 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({ anilibriaData }) => {
     );
   }
 
+  // Kodik-ссылки часто начинаются с "//", что требует добавления протокола
+  const playerUrl = kodikData.link.startsWith('//') ? `https:${kodikData.link}` : kodikData.link;
+
   return (
     <div className="aspect-video bg-black rounded-lg overflow-hidden">
-      <video ref={videoRef} controls className="w-full h-full" />
+      <iframe
+        src={playerUrl}
+        width="100%"
+        height="100%"
+        frameBorder="0"
+        allowFullScreen
+        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        className="w-full h-full"
+      ></iframe>
     </div>
   );
 };

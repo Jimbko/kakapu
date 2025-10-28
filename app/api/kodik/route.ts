@@ -3,13 +3,15 @@ import { NextRequest, NextResponse } from 'next/server';
 const API_BASE = 'https://kodikapi.com';
 let cachedToken: string | null = null;
 
+const BROWSER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36';
+
 async function getKodikToken(): Promise<string> {
     if (cachedToken) {
         return cachedToken;
     }
 
     try {
-        const response = await fetch('https://kodik.info/');
+        const response = await fetch('https://kodik.info/', { headers: { 'User-Agent': BROWSER_USER_AGENT } });
         const html = await response.text();
         
         const tokenMatch = html.match(/(?:token|api_token):\s*['"]([a-f0-9]{32})['"]/i);
@@ -34,7 +36,7 @@ async function getKodikToken(): Promise<string> {
                     }
 
                     try {
-                        const scriptResponse = await fetch(scriptUrl);
+                        const scriptResponse = await fetch(scriptUrl, { headers: { 'User-Agent': BROWSER_USER_AGENT } });
                         const scriptText = await scriptResponse.text();
                         const scriptTokenMatch = scriptText.match(/(?:token|api_token):\s*['"]([a-f0-9]{32})['"]/i);
                         
@@ -84,11 +86,12 @@ export async function POST(request: NextRequest) {
 
         console.log(`🔍 Поиск в Kodik: ${params.toString()}`);
 
-        const response = await fetch(`${API_BASE}/search?${params.toString()}`, {
+        const response = await fetch(`${API_BASE}/search`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'User-Agent': 'Anime-Volnitsa-Server/1.0',
             },
+            body: params,
         });
 
         if (!response.ok) {

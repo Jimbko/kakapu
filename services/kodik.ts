@@ -1,111 +1,38 @@
 import { KodikSearchResult, ShikimoriAnime } from "../types";
 
-// Используем прокси, чтобы обойти CORS-ограничения браузера
-const PROXY_URL = 'https://cors.kurume.moe/';
-const KODIK_API_BASE = 'https://kodikapi.com';
-const KODIK_INFO_BASE = 'https://kodik.info';
-
-let cachedToken: string | null = null;
-
 /**
- * Улучшенная функция для автоматического получения токена.
- * Сначала пытается найти токен на главной странице kodik.info,
- * затем в подключенных JS-скриптах, и только потом использует резервный.
- */
-async function getKodikToken(): Promise<string> {
-    if (cachedToken) {
-        return cachedToken;
-    }
-
-    try {
-        const response = await fetch(`${PROXY_URL}${KODIK_INFO_BASE}/`);
-        const html = await response.text();
-        
-        const tokenMatch = html.match(/(?:token|api_token):\s*['"]([a-f0-9]{32})['"]/i);
-        
-        if (tokenMatch && tokenMatch[1]) {
-            cachedToken = tokenMatch[1];
-            console.log('✅ Токен Kodik успешно получен автоматически');
-            return cachedToken;
-        }
-
-        const scriptMatches = html.match(/<script[^>]+src=["']([^"']+\.js)["']/gi);
-        
-        if (scriptMatches) {
-            for (const scriptTag of scriptMatches.slice(0, 5)) { // Проверяем первые 5 скриптов
-                const srcMatch = scriptTag.match(/src=["']([^"']+)["']/);
-                if (srcMatch) {
-                    let scriptUrl = srcMatch[1];
-                    if (scriptUrl.startsWith('//')) {
-                        scriptUrl = 'https:' + scriptUrl;
-                    } else if (scriptUrl.startsWith('/')) {
-                        scriptUrl = KODIK_INFO_BASE + scriptUrl;
-                    }
-
-                    try {
-                        const scriptResponse = await fetch(`${PROXY_URL}${scriptUrl}`);
-                        const scriptText = await scriptResponse.text();
-                        const scriptTokenMatch = scriptText.match(/(?:token|api_token):\s*['"]([a-f0-9]{32})['"]/i);
-                        
-                        if (scriptTokenMatch && scriptTokenMatch[1]) {
-                            cachedToken = scriptTokenMatch[1];
-                            console.log('✅ Токен Kodik найден в скрипте');
-                            return cachedToken;
-                        }
-                    } catch (e) {
-                        // Игнорируем ошибки при загрузке отдельных скриптов
-                        continue;
-                    }
-                }
-            }
-        }
-
-        console.warn('⚠️ Не удалось получить токен автоматически, использую резервный');
-        cachedToken = '3f72e96c268b3c43694060851e331b2c';
-        return cachedToken;
-
-    } catch (error) {
-        console.error('❌ Ошибка при получении токена:', error);
-        cachedToken = '3f72e96c268b3c43694060851e331b2c'; // Fallback token
-        return cachedToken;
-    }
-}
-
-
-/**
- * Обертка для поиска в Kodik, которая использует наш прокси и обработку токена.
+ * Обертка для поиска в Kodik, которая использует наш собственный API-роут.
  */
 const searchKodik = async (params: { shikimori_id?: number; title?: string }): Promise<KodikSearchResult | null> => {
     try {
-        const token = await getKodikToken();
-        const searchParams = new URLSearchParams({ token });
-        
+        const body: { shikimori_id?: number; title?: string } = {};
         if (params.shikimori_id) {
-            searchParams.set('shikimori_id', String(params.shikimori_id));
-        } else if (params.title) {
-            searchParams.set('title', params.title);
-        } else {
-            return null; // Нечего искать
+            body.shikimori_id = params.shikimori_id;
         }
+        if (params.title) {
+            body.title = params.title;
+        }
+
+        console.log(`🔍 Поиск в Kodik через локальный API:`, body);
         
-        console.log(`🔍 Поиск в Kodik: ${searchParams.toString()}`);
-        
-        const response = await fetch(`${PROXY_URL}${KODIK_API_BASE}/search?${searchParams.toString()}`, {
-            method: 'POST', // Kodik API использует POST для поиска
+        const response = await fetch('/api/kodik', {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) {
-            console.error(`Kodik API returned error: ${response.status}`);
+            console.error(`Local Kodik API endpoint error: ${response.status}`);
             return null;
         }
 
         const data = await response.json();
+        // API-роут возвращает полный ответ от Kodik
         return (data.results && data.results.length > 0) ? data.results[0] : null;
     } catch (error) {
-        console.error('Kodik search failed:', error);
+        console.error('Kodik search through local API failed:', error);
         return null;
     }
 };
