@@ -21,10 +21,14 @@ const HomePage: React.FC = () => {
           getAnimeList({ limit: 10, order: 'aired_on' }),
           getAnimeList({ limit: 10, kind: 'movie', order: 'popularity' })
         ]);
+        
+        // Revert: Remove filtering to show all content, even with placeholders.
+        // This makes the homepage feel more complete.
         setPopular(popularData);
         setOngoing(ongoingData);
         setNewest(newestData);
         setMovies(moviesData);
+
       } catch (error) {
         console.error("Failed to fetch anime lists for homepage:", error);
       } finally {

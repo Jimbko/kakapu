@@ -5,6 +5,52 @@ import { getAnimeList } from '../services/shikimori';
 import { AnimeCard } from '../components/AnimeComponents';
 import { FilterSidebar } from '../components/catalog/FilterSidebar';
 
+// --- Child Component for displaying anime grid ---
+const AnimeGrid: React.FC<{
+    animeList: ShikimoriAnime[];
+    loading: boolean;
+    hasMore: boolean;
+    loadMore: () => void;
+}> = ({ animeList, loading, hasMore, loadMore }) => {
+
+    if (!loading && animeList.length === 0) {
+        return (
+            <div className="text-center py-16 bg-zinc-800/50 rounded-lg">
+                <h2 className="text-xl font-semibold text-zinc-300">Ничего не найдено</h2>
+                <p className="text-zinc-500 mt-2">Попробуйте изменить или сбросить фильтры.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {animeList.map(anime => (
+                    <AnimeCard key={`${anime.id}-${anime.name}`} anime={anime} />
+                ))}
+                {loading && Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex-shrink-0">
+                        <div className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
+                        <div className="h-4 bg-zinc-800 rounded mt-2 animate-pulse w-3/4"></div>
+                    </div>
+                ))}
+            </div>
+            {hasMore && !loading && animeList.length > 0 && (
+                <div className="text-center mt-8">
+                    <button 
+                        onClick={loadMore}
+                        className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-md font-semibold transition-colors"
+                    >
+                        Загрузить еще
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+// --- Main Page Component ---
 const CatalogPage: React.FC = () => {
     const [searchParams] = useSearchParams();
     const [animeList, setAnimeList] = useState<ShikimoriAnime[]>([]);
@@ -62,33 +108,12 @@ const CatalogPage: React.FC = () => {
         <div className="flex flex-col lg:flex-row gap-8">
             <FilterSidebar />
             <div className="flex-grow">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {animeList.map(anime => (
-                        <AnimeCard key={`${anime.id}-${anime.name}`} anime={anime} />
-                    ))}
-                    {loading && Array.from({ length: 8 }).map((_, i) => (
-                        <div key={i} className="flex-shrink-0">
-                            <div className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
-                            <div className="h-4 bg-zinc-800 rounded mt-2 animate-pulse w-3/4"></div>
-                        </div>
-                    ))}
-                </div>
-                {hasMore && !loading && animeList.length > 0 && (
-                    <div className="text-center mt-8">
-                        <button 
-                            onClick={loadMore}
-                            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-md font-semibold transition-colors"
-                        >
-                            Загрузить еще
-                        </button>
-                    </div>
-                )}
-                 {!loading && animeList.length === 0 && (
-                    <div className="text-center py-16 bg-zinc-800/50 rounded-lg">
-                        <h2 className="text-xl font-semibold text-zinc-300">Ничего не найдено</h2>
-                        <p className="text-zinc-500 mt-2">Попробуйте изменить или сбросить фильтры.</p>
-                    </div>
-                )}
+                <AnimeGrid 
+                    animeList={animeList}
+                    loading={loading}
+                    hasMore={hasMore}
+                    loadMore={loadMore}
+                />
             </div>
         </div>
     );

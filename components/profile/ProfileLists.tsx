@@ -59,7 +59,7 @@ const ListTabContent: React.FC<{ list: { id: number; name: string }[] }> = ({ li
         <Link to={`/anime/${anime.id}`} key={anime.id} className="group">
           <div className="aspect-[2/3] bg-zinc-800 rounded-lg overflow-hidden">
             <img 
-              src={`https://shikimori.one${anime.image.preview}`} 
+              src={anime.image.preview} 
               alt={anime.russian}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
             />

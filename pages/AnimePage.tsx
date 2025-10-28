@@ -104,7 +104,7 @@ const AnimePage: React.FC = () => {
     <div>
       <div 
         className="h-[40vh] md:h-[50vh] -mx-4 -mt-8 mb-8 bg-cover bg-center relative" 
-        style={{ backgroundImage: `url(https://shikimori.one${anime.image.original})` }}
+        style={{ backgroundImage: `url(${anime.image.original})` }}
       >
         <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-zinc-900/70 to-transparent"></div>
       </div>

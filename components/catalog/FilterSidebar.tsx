@@ -4,6 +4,8 @@ import { Genre } from '../../types';
 import { getGenres } from '../../services/shikimori';
 import { ICONS } from '../../constants';
 
+// --- Reusable Child Components ---
+
 const FilterSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
     const [isOpen, setIsOpen] = useState(true);
     return (
@@ -12,12 +14,12 @@ const FilterSection: React.FC<{ title: string; children: React.ReactNode }> = ({
                 {title}
                 {isOpen ? ICONS.CHEVRON_UP : ICONS.CHEVRON_DOWN}
             </button>
-            {isOpen && <div className="mt-3 space-y-2">{children}</div>}
+            {isOpen && <div className="mt-3">{children}</div>}
         </div>
     );
 };
 
-const SelectFilter: React.FC<{ name: string; options: { value: string; label: string }[]; label: string }> = ({ name, options, label }) => {
+const SelectFilter: React.FC<{ name: string; options: { value: string; label: string }[]; label: string; disabled?: boolean; }> = ({ name, options, label, disabled = false }) => {
     const [searchParams, setSearchParams] = useSearchParams();
     const value = searchParams.get(name) || '';
 
@@ -38,7 +40,8 @@ const SelectFilter: React.FC<{ name: string; options: { value: string; label: st
             <select
                 value={value}
                 onChange={handleChange}
-                className="w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-md p-2 text-sm text-zinc-200 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                disabled={disabled}
+                className="w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-md p-2 text-sm text-zinc-200 focus:ring-2 focus:ring-purple-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 <option value="">Любой</option>
                 {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -46,6 +49,70 @@ const SelectFilter: React.FC<{ name: string; options: { value: string; label: st
         </div>
     );
 };
+
+const GenreFilter: React.FC = () => {
+    const [genres, setGenres] = useState<Genre[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedGenres = searchParams.get('genre')?.split(',') || [];
+
+    useEffect(() => {
+        setLoading(true);
+        setError(null);
+        getGenres()
+            .then(allGenres => {
+                // Revert: Temporarily remove the filter for anime-only genres to debug empty list issue.
+                setGenres(allGenres);
+            })
+            .catch(err => {
+                console.error("Failed to load genres:", err);
+                setError("Не удалось загрузить жанры.");
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    }, []);
+
+    const handleGenreChange = (genreId: string) => {
+        const newParams = new URLSearchParams(searchParams);
+        const currentGenres = newParams.get('genre')?.split(',') || [];
+        const newGenres = currentGenres.includes(genreId)
+            ? currentGenres.filter(g => g !== genreId)
+            : [...currentGenres, genreId];
+        
+        if (newGenres.length > 0) {
+            newParams.set('genre', newGenres.join(','));
+        } else {
+            newParams.delete('genre');
+        }
+        newParams.set('page', '1');
+        setSearchParams(newParams);
+    };
+    
+    return (
+        <FilterSection title="Жанры">
+            <div className="max-h-60 overflow-y-auto custom-scrollbar pr-2 space-y-1">
+                {loading && <p className="text-sm text-zinc-400 px-1">Загрузка...</p>}
+                {error && <p className="text-sm text-red-400 px-1">{error}</p>}
+                {!loading && !error && genres.length === 0 && <p className="text-sm text-zinc-500 px-1">Жанры не найдены.</p>}
+                {!loading && !error && genres.map(genre => (
+                    <label key={genre.id} className="flex items-center space-x-2 cursor-pointer p-1 hover:bg-zinc-700 rounded-md transition-colors">
+                        <input
+                            type="checkbox"
+                            checked={selectedGenres.includes(String(genre.id))}
+                            onChange={() => handleGenreChange(String(genre.id))}
+                            className="h-4 w-4 rounded bg-zinc-700 border-zinc-600 text-purple-600 focus:ring-purple-500 shrink-0"
+                        />
+                        <span className="text-sm text-zinc-300">{genre.russian}</span>
+                    </label>
+                ))}
+            </div>
+        </FilterSection>
+    );
+};
+
+// --- Filter Constants ---
 
 const years = Array.from({ length: new Date().getFullYear() - 1960 + 1 }, (_, i) => {
     const year = new Date().getFullYear() - i;
@@ -80,30 +147,22 @@ const orders = [
     { value: 'name', label: 'По названию' },
 ];
 
-export const FilterSidebar: React.FC = () => {
-    const [genres, setGenres] = useState<Genre[]>([]);
-    const [searchParams, setSearchParams] = useSearchParams();
-    const selectedGenres = searchParams.get('genre')?.split(',') || [];
+// --- Main Component ---
 
+export const FilterSidebar: React.FC = () => {
+    const [searchParams, setSearchParams] = useSearchParams();
+    const selectedYear = searchParams.get('season_year');
+
+    // Effect to clear season_of_year if year is cleared
     useEffect(() => {
-        getGenres().then(setGenres);
-    }, []);
-    
-    const handleGenreChange = (genreId: string) => {
-        const newParams = new URLSearchParams(searchParams);
-        const currentGenres = newParams.get('genre')?.split(',') || [];
-        const newGenres = currentGenres.includes(genreId)
-            ? currentGenres.filter(g => g !== genreId)
-            : [...currentGenres, genreId];
-        
-        if (newGenres.length > 0) {
-            newParams.set('genre', newGenres.join(','));
-        } else {
-            newParams.delete('genre');
+        if (!selectedYear) {
+            const newParams = new URLSearchParams(searchParams);
+            if (newParams.has('season_of_year')) {
+                newParams.delete('season_of_year');
+                setSearchParams(newParams, { replace: true });
+            }
         }
-        newParams.set('page', '1');
-        setSearchParams(newParams);
-    };
+    }, [selectedYear, searchParams, setSearchParams]);
 
     const handleReset = () => {
         setSearchParams(new URLSearchParams());
@@ -118,26 +177,12 @@ export const FilterSidebar: React.FC = () => {
             
             <div className="space-y-4">
                 <SelectFilter name="order" options={orders} label="Сортировка" />
-                <FilterSection title="Жанры">
-                    <div className="max-h-60 overflow-y-auto custom-scrollbar pr-2 space-y-2">
-                        {genres.map(genre => (
-                            <label key={genre.id} className="flex items-center space-x-2 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={selectedGenres.includes(String(genre.id))}
-                                    onChange={() => handleGenreChange(String(genre.id))}
-                                    className="h-4 w-4 rounded bg-zinc-700 border-zinc-600 text-purple-600 focus:ring-purple-500"
-                                />
-                                <span className="text-sm text-zinc-300">{genre.russian}</span>
-                            </label>
-                        ))}
-                    </div>
-                </FilterSection>
+                <GenreFilter />
                 <SelectFilter name="status" options={statuses} label="Статус" />
                 <SelectFilter name="kind" options={kinds} label="Тип" />
                 <div className="flex gap-2">
                     <SelectFilter name="season_year" options={years} label="Год" />
-                    <SelectFilter name="season_of_year" options={seasons} label="Сезон" />
+                    <SelectFilter name="season_of_year" options={seasons} label="Сезон" disabled={!selectedYear} />
                 </div>
             </div>
         </div>

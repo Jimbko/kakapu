@@ -15,7 +15,7 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime }) => {
     <Link to={`/anime/${anime.id}`} className="flex-shrink-0 w-48 group relative fade-in">
       <div className="aspect-[2/3] bg-zinc-800 rounded-lg overflow-hidden relative">
         <img
-          src={`https://shikimori.one${anime.image.original}`}
+          src={anime.image.original}
           alt={anime.russian || anime.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
@@ -95,7 +95,7 @@ export const AnimeInfo: React.FC<AnimeInfoProps> = ({ anime, isFavorite, isPlann
     return (
       <div className="flex flex-col md:flex-row gap-8 mt-[-100px] relative z-10 px-4 md:px-0">
         <div className="md:w-1/4 flex-shrink-0">
-            <img src={`https://shikimori.one${anime.image.original}`} alt={anime.russian} className="w-full aspect-[2/3] object-cover rounded-lg shadow-2xl shadow-black/50" />
+            <img src={anime.image.original} alt={anime.russian} className="w-full aspect-[2/3] object-cover rounded-lg shadow-2xl shadow-black/50" />
         </div>
         <div className="md:w-3/4 bg-zinc-800/50 backdrop-blur-sm rounded-lg p-6 fade-in">
             <h1 className="text-4xl font-bold text-white">{anime.russian || anime.name}</h1>

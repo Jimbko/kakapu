@@ -45,7 +45,7 @@ const Top100Page: React.FC = () => {
             className="flex items-center space-x-4 p-3 hover:bg-zinc-700/50 transition-colors border-b border-zinc-700/50 last:border-b-0"
           >
             <div className="text-xl font-bold text-zinc-400 w-8 text-center">{index + 1}</div>
-            <img src={`https://shikimori.one${anime.image.x96}`} alt={anime.russian} className="w-16 h-24 object-cover rounded-md" />
+            <img src={anime.image.x96} alt={anime.russian} className="w-16 h-24 object-cover rounded-md" />
             <div className="flex-grow">
               <h3 className="font-semibold text-white">{anime.russian || anime.name}</h3>
               <p className="text-sm text-zinc-400">{anime.name}</p>
