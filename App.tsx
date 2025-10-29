@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
-import { HashRouter, Routes, Route } from 'react-router-dom';
+// FIX: Resolve react-router-dom import issue by using a namespace import.
+import * as ReactRouterDom from 'react-router-dom';
+const { HashRouter, Routes, Route } = ReactRouterDom;
 import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import AnimePage from './pages/AnimePage';

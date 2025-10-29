@@ -1,5 +1,7 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+// FIX: Resolve react-router-dom import issue by using a namespace import.
+import * as ReactRouterDom from 'react-router-dom';
+const { Link } = ReactRouterDom;
 import { ICONS } from '../../constants';
 
 const Footer: React.FC = () => {

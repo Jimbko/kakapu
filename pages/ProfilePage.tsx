@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+// FIX: Resolve react-router-dom import issue by using a namespace import.
+import * as ReactRouterDom from 'react-router-dom';
+const { useParams, useNavigate } = ReactRouterDom;
 import { UserProfile } from '../types';
 import { getUserProfile } from '../services/mockApi';
 import ProfileHeader from '../components/profile/ProfileHeader';

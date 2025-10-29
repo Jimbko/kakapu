@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+// FIX: Resolve react-router-dom import issue by using a namespace import.
+import * as ReactRouterDom from 'react-router-dom';
+const { Link } = ReactRouterDom;
 import { getCommunityActivityFeed } from '../../services/mockApi';
 import { ActivityItem } from '../../types';
 import { ICONS } from '../../constants';
@@ -39,7 +41,7 @@ const ActivityCard: React.FC<{ item: ActivityItem }> = ({ item }) => {
                 </div>
                 <div className="bg-zinc-700/50 p-3 rounded-md text-zinc-300 text-sm italic">
                     <div className="flex space-x-2">
-                        <span className="text-zinc-400 flex-shrink-0">{getIcon()}</span>
+                        <span className="text-zinc-400 flex-shrink-0 w-5 h-5">{getIcon()}</span>
                         <p className="line-clamp-3">{item.content}</p>
                     </div>
                 </div>

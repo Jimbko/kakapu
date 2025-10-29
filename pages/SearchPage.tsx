@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+// FIX: Resolve react-router-dom import issue by using a namespace import.
+import * as ReactRouterDom from 'react-router-dom';
+const { useSearchParams } = ReactRouterDom;
 import { ShikimoriAnime } from '../types';
 import { searchAnime } from '../services/shikimori';
 import { AnimeCard } from '../components/shared/AnimeCard';

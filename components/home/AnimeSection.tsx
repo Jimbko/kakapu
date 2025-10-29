@@ -1,5 +1,7 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+// FIX: Resolve react-router-dom import issue by using a namespace import.
+import * as ReactRouterDom from 'react-router-dom';
+const { Link } = ReactRouterDom;
 import { ShikimoriAnime } from '../../types';
 import { AnimeCard } from '../shared/AnimeCard';
 import { ErrorMessage } from '../shared/ErrorMessage';

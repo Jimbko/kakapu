@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+// FIX: Resolve react-router-dom import issue by using a namespace import.
+import * as ReactRouterDom from 'react-router-dom';
+const { Link } = ReactRouterDom;
 import { ShikimoriAnime } from '../../types';
 import { ICONS } from '../../constants';
 import { usePosters } from '../../contexts/PosterContext';
@@ -35,13 +37,13 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, showRating = true }
 
   return (
     <Link to={`/anime/${currentAnime.id}`} className="group block">
-      <div className="aspect-[2/3] w-full bg-zinc-800 rounded-lg overflow-hidden relative">
+      <div className="aspect-[2/3] w-full bg-zinc-800 rounded-lg overflow-hidden relative transition-transform duration-300 group-hover:scale-105">
         {imageUrl ? (
           <img
             key={imageUrl} // Force re-render on URL change
             src={imageUrl}
             alt={title}
-            className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            className={`w-full h-full object-cover transition-opacity duration-500 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={() => setImageLoaded(true)}
             loading="lazy"
           />
@@ -49,10 +51,13 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, showRating = true }
           <ImagePlaceholder />
         )}
         
+        {/* Improved Hover Rating Display */}
         {showRating && score > 0 && (
-          <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-bold text-yellow-300 flex items-center space-x-1">
-            {ICONS.STAR_FILLED}
-            <span>{score.toFixed(1)}</span>
+          <div className="absolute bottom-0 left-0 right-0 bg-black/50 backdrop-blur-sm p-2 transition-all duration-300 opacity-0 group-hover:opacity-100 translate-y-full group-hover:translate-y-0">
+            <div className="flex items-center justify-center space-x-1 text-yellow-300 font-bold">
+              <div className="w-4 h-4">{ICONS.STAR_FILLED}</div>
+              <span>{score.toFixed(1)}</span>
+            </div>
           </div>
         )}
       </div>

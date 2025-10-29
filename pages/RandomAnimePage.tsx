@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// FIX: Resolve react-router-dom import issue by using a namespace import.
+import * as ReactRouterDom from 'react-router-dom';
+const { useNavigate } = ReactRouterDom;
 import { getAnimeList } from '../services/shikimori';
 
 const RandomAnimePage: React.FC = () => {

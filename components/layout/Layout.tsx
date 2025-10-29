@@ -1,5 +1,7 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+// FIX: Resolve react-router-dom import issue by using a namespace import.
+import * as ReactRouterDom from 'react-router-dom';
+const { Outlet } = ReactRouterDom;
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../../contexts/AuthContext';
