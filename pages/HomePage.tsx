@@ -58,25 +58,32 @@ const HomePage: React.FC = () => {
     setLoadingStates({ hero: true, popular: true, newReleases: true, ongoing: true, movies: true });
     setErrors({ hero: null, popular: null, newReleases: null, ongoing: null, movies: null });
 
-    // --- Hero Fetching ---
+    // --- Hero Fetching (Optimized) ---
     const fetchHero = async () => {
-        let validHeroFound = false;
-        for (let attempt = 0; attempt < 5 && !validHeroFound; attempt++) {
-            try {
-                const randomPage = Math.floor(Math.random() * 5) + 1;
-                const candidates = await getAnimeList({ limit: 1, order: 'popularity', page: randomPage });
-                if (candidates && candidates.length > 0) {
-                    const heroData = await getAnimeById(String(candidates[0].id));
-                    if (heroData.image && (heroData.description_html || heroData.description)) {
-                        setHeroAnime(heroData);
-                        logAnimeData('Hero Banner', heroData);
-                        validHeroFound = true;
-                    }
-                }
-            } catch (e) { console.warn(`Hero fetch attempt ${attempt + 1} failed.`); }
+        try {
+            // Step 1: Fetch a list of popular candidates in one go.
+            const candidates = await getAnimeList({ limit: 10, order: 'popularity' });
+            if (!candidates || candidates.length === 0) throw new Error("No hero candidates found.");
+
+            // Step 2: Find the best candidate with an image and description from the list.
+            const bestCandidate = candidates.find(c => c.image && c.description);
+            const candidateToFetch = bestCandidate || candidates[0];
+            if (!candidateToFetch) throw new Error("No valid hero candidate available.");
+
+            // Step 3: Fetch full details for the chosen candidate.
+            const heroData = await getAnimeById(String(candidateToFetch.id));
+            if (heroData && (heroData.description_html || heroData.description)) {
+                setHeroAnime(heroData);
+                logAnimeData('Hero Banner', heroData);
+            } else {
+                throw new Error(`Chosen hero candidate (ID: ${heroData.id}) lacks sufficient data.`);
+            }
+        } catch (e) {
+            console.error("Failed to fetch hero banner:", e);
+            setErrors(p => ({ ...p, hero: 'Не удалось загрузить баннер.' }));
+        } finally {
+            setLoadingStates(p => ({ ...p, hero: false }));
         }
-        if (!validHeroFound) setErrors(p => ({ ...p, hero: 'Не удалось загрузить баннер.' }));
-        setLoadingStates(p => ({ ...p, hero: false }));
     };
 
     // --- Carousels Fetching ---

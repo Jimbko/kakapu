@@ -1,188 +1,257 @@
-import { ShikimoriAnime, Genre, FranchiseData } from '../types';
+// FIX: Import ShikimoriImageObject from imageProcessor, not types.
+import { ShikimoriAnime, Genre, FranchiseData, FranchiseNode, ProcessedImage } from '../types';
 import { cache } from './cache';
-import { 
-    selectBestPoster, 
-    tryAlternativePosterSources,
-    ShikimoriImageObject 
-} from './imageProcessor';
+// FIX: ShikimoriImageObject is defined and exported from imageProcessor.ts
+import { selectBestPoster, tryAlternativePosterSources, ShikimoriImageObject, isPlaceholderUrl } from './imageProcessor';
+import { makeUrlAbsolute } from '../utils/urlHelpers';
 
-const API_BASE = 'https://shikimori.one/api';
-const USER_AGENT = 'AnimeVolnitsa/1.0';
-const DEBUG_API = process.env.NODE_ENV === 'development';
+const SHIKIMORI_API_BASE = 'https://shikimori.one/api';
+const USER_AGENT = 'AnimeVolnitsa/1.0 (https://github.com/your-repo/anime-volnitsa)'; // Placeholder URL
+const CACHE_TTL_SHORT = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL_LONG = 60 * 60 * 1000; // 1 hour
 
-// --- API Fetcher ---
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const shikimoriApiFetch = async <T>(endpoint: string, options: RequestInit = {}): Promise<T> => {
-    const url = `${API_BASE}${endpoint}`;
-    if (DEBUG_API) console.log(`[Shikimori API] Fetching: ${url}`);
+/**
+ * Generic fetch function for the Shikimori API with caching and retry logic.
+ */
+const apiFetch = async <T>(endpoint: string, ttl: number = CACHE_TTL_SHORT): Promise<T> => {
+    const url = `${SHIKIMORI_API_BASE}${endpoint}`;
     
-    const response = await fetch(url, {
-        ...options,
-        headers: {
-            'User-Agent': USER_AGENT,
-            ...options.headers,
-        },
-    });
-
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`[Shikimori API] Error ${response.status} for ${url}:`, errorText);
-        throw new Error(`Shikimori API request failed with status ${response.status}`);
+    const cachedData = cache.get<T>(url);
+    if (cachedData) {
+        return cachedData;
     }
 
-    return response.json();
-};
+    const MAX_RETRIES = 4;
+    let lastError: Error | null = null;
 
-// --- Data Processing ---
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+            const response = await fetch(url, {
+                headers: { 'User-Agent': USER_AGENT },
+            });
 
-const processAnimeData = async (animeData: any): Promise<ShikimoriAnime> => {
-    // The main API returns a different image object shape than the IDs endpoint.
-    // We can treat it as both for the poster selector.
-    const detailImage: ShikimoriImageObject = animeData.image;
-    
-    let { image, isPlaceholder } = selectBestPoster(detailImage, null);
+            if (response.ok) {
+                const data = await response.json();
+                cache.set(url, data, ttl);
+                return data;
+            }
 
-    // If no good image found, try alternative methods
-    if (isPlaceholder) {
-        if (DEBUG_API) console.log(`[Image Processor] No valid poster for ${animeData.id}, trying alternatives...`);
-        const alternativeUrl = await tryAlternativePosterSources(animeData.id, animeData.russian || animeData.name);
-        if (alternativeUrl) {
-            image = {
-                original: alternativeUrl,
-                preview: alternativeUrl,
-                x96: alternativeUrl,
-                x48: alternativeUrl,
-            };
+            if (response.status === 429) {
+                const delay = Math.pow(2, attempt) * 500; // Exponential backoff: 1s, 2s, 4s, 8s
+                console.warn(`[Shikimori API] 429 Too Many Requests. Retrying in ${delay}ms... (Attempt ${attempt}/${MAX_RETRIES}) for ${url}`);
+                await sleep(delay);
+                continue; // Retry
+            }
+
+            // For other non-ok statuses, fail fast
+            const responseText = await response.text();
+            lastError = new Error(`[Shikimori API] Error ${response.status} for ${url}: ${responseText}`);
+            break;
+
+        } catch (error) {
+            lastError = error as Error;
+            console.error(`[Shikimori API] Network error on attempt ${attempt} for ${url}:`, error);
+            if (attempt < MAX_RETRIES) {
+                const delay = Math.pow(2, attempt) * 500;
+                await sleep(delay);
+            }
         }
     }
-
-    return { ...animeData, image };
+    
+    console.error(lastError);
+    throw lastError || new Error(`[Shikimori API] Request failed for ${url} after ${MAX_RETRIES} attempts.`);
 };
 
 
-// --- Exported Functions ---
+/**
+ * Processes a raw anime object from the API, primarily handling image selection from a single source.
+ */
+const processAnime = (anime: any): ShikimoriAnime => {
+    const imageObj: ShikimoriImageObject | null = typeof anime.image === 'string'
+        ? { original: anime.image, preview: anime.image, x96: anime.image, x48: anime.image }
+        : anime.image;
+        
+    const { image, isPlaceholder } = selectBestPoster(imageObj, null);
 
+    return {
+        ...anime,
+        image: isPlaceholder ? null : image,
+    };
+};
+
+/**
+ * Processes an array of raw anime objects.
+ */
+const processAnimeList = (animeList: any[]): ShikimoriAnime[] => {
+    return animeList.filter(Boolean).map(processAnime);
+};
+
+
+/**
+ * Fetches a list of anime based on provided parameters.
+ */
 export const getAnimeList = async (params: Record<string, any>): Promise<ShikimoriAnime[]> => {
     const filteredParams: Record<string, string> = {};
     Object.keys(params).forEach(key => {
         const value = params[key];
-        if (value !== undefined && value !== null && value !== '') {
+        if (value !== null && value !== undefined) {
             filteredParams[key] = String(value);
         }
     });
-
     const query = new URLSearchParams(filteredParams).toString();
-    const cacheKey = `anime_list_${query}`;
-    
-    const cached = cache.get<ShikimoriAnime[]>(cacheKey);
-    if (cached) return cached;
-    
-    const data = await shikimoriApiFetch<any[]>(`/animes?${query}`);
-    const processedData = await Promise.all(data.map(processAnimeData));
-    
-    cache.set(cacheKey, processedData, 10 * 60 * 1000); // 10 minutes cache
-    return processedData;
+    const data = await apiFetch<any[]>(`/animes?${query}`);
+    return processAnimeList(data);
 };
 
+/**
+ * Fetches detailed information for a single anime by its ID.
+ */
 export const getAnimeById = async (id: string): Promise<ShikimoriAnime> => {
-    const cacheKey = `anime_detail_${id}`;
+    const data = await apiFetch<any>(`/animes/${id}`, CACHE_TTL_LONG);
     
-    const cached = cache.get<ShikimoriAnime>(cacheKey);
-    if (cached) return cached;
+    const detailImageObj = typeof data.image === 'string'
+        ? { original: data.image, preview: data.image, x96: data.image, x48: data.image }
+        : data.image;
 
-    // Fetch from both endpoints for better data quality
-    const [detailData, listData] = await Promise.allSettled([
-        shikimoriApiFetch<any>(`/animes/${id}`),
-        shikimoriApiFetch<any[]>(`/animes?ids=${id}&limit=1`),
-    ]);
+    const { image, isPlaceholder } = selectBestPoster(detailImageObj, null);
     
-    if (detailData.status === 'rejected') {
-        throw new Error(`Failed to fetch main details for anime ${id}`);
-    }
+    const processed = {
+        ...data,
+        image: isPlaceholder ? null : image,
+    };
 
-    const anime = detailData.value;
-    const listVersion = listData.status === 'fulfilled' && listData.value[0] ? listData.value[0] : null;
-
-    let { image, isPlaceholder } = selectBestPoster(anime.image, listVersion?.image);
-
-    if (isPlaceholder) {
-        if (DEBUG_API) console.log(`[Image Processor] No valid poster for ${id} from standard APIs, trying alternatives...`);
-        const alternativeUrl = await tryAlternativePosterSources(anime.id, anime.russian || anime.name);
-        if (alternativeUrl) {
-            image = {
-                original: alternativeUrl,
-                preview: alternativeUrl,
-                x96: alternativeUrl,
-                x48: alternativeUrl,
+    // If poster is still missing, try alternative sources.
+    if (!processed.image) {
+        const alternativePosterUrl = await tryAlternativePosterSources(processed.id, processed.name);
+        if (alternativePosterUrl) {
+            processed.image = {
+                original: alternativePosterUrl,
+                preview: alternativePosterUrl,
+                x96: alternativePosterUrl,
+                x48: alternativePosterUrl,
             };
         }
     }
     
-    const processedData: ShikimoriAnime = { ...anime, image };
-    
-    cache.set(cacheKey, processedData, 60 * 60 * 1000); // 1 hour cache
-    return processedData;
+    return processed;
 };
 
+/**
+ * Fetches basic information for multiple animes by their IDs in a single batch.
+ */
 export const getAnimeByIds = async (ids: number[]): Promise<ShikimoriAnime[]> => {
     if (ids.length === 0) return [];
-    
-    const idsString = ids.join(',');
-    const cacheKey = `anime_by_ids_${idsString}`;
-    
-    const cached = cache.get<ShikimoriAnime[]>(cacheKey);
-    if (cached) return cached;
-    
-    const data = await shikimoriApiFetch<any[]>(`/animes?ids=${idsString}&limit=${ids.length}`);
-    const processedData = await Promise.all(data.map(processAnimeData));
-    
-    cache.set(cacheKey, processedData, 15 * 60 * 1000); // 15 minutes cache
-    return processedData;
+    const query = `ids=${ids.join(',')}&limit=${ids.length}`;
+    const data = await apiFetch<any[]>(`/animes?${query}`);
+    return processAnimeList(data);
 };
 
-export const searchAnime = async (query: string): Promise<ShikimoriAnime[]> => {
-    const data = await getAnimeList({ search: query, limit: 50 });
-    return data;
+/**
+ * An optimized function to enrich a list of anime with full details,
+ * specifically targeting those with missing posters from list views.
+ */
+export const getFullAnimeDetailsByIds = async (ids: number[]): Promise<ShikimoriAnime[]> => {
+    if (ids.length === 0) return [];
+
+    // Step 1: Get the fast, batched data first.
+    const batchedAnimeList = await getAnimeByIds(ids);
+
+    // Step 2: Identify which animes are missing posters.
+    const idsToEnrich = batchedAnimeList
+        .filter(anime => !anime.image)
+        .map(anime => anime.id);
+
+    let enrichedData: ShikimoriAnime[] = [];
+    if (idsToEnrich.length > 0) {
+        console.log(`[Shikimori] Found ${idsToEnrich.length} animes with missing posters. Fetching full details.`);
+
+        // Step 3: Fetch full details ONLY for the missing ones in parallel.
+        const detailPromises = idsToEnrich.map(id => getAnimeById(String(id)));
+        const results = await Promise.allSettled(detailPromises);
+
+        results.forEach((result, index) => {
+            if (result.status === 'fulfilled') {
+                enrichedData.push(result.value);
+            } else {
+                console.warn(`[Shikimori] Failed to enrich anime ID ${idsToEnrich[index]}:`, result.reason);
+            }
+        });
+    }
+
+    // Step 4: Merge the results.
+    const enrichedMap = new Map(enrichedData.map(anime => [anime.id, anime]));
+    const finalAnimeList = batchedAnimeList.map(anime =>
+        enrichedMap.get(anime.id) || anime
+    );
+
+    return finalAnimeList;
 };
 
-export const getSimilarAnime = async (id: string): Promise<ShikimoriAnime[]> => {
-    const cacheKey = `anime_similar_${id}`;
-    
-    const cached = cache.get<ShikimoriAnime[]>(cacheKey);
-    if (cached) return cached;
 
-    const data = await shikimoriApiFetch<any[]>(`/animes/${id}/similar`);
-    const processedData = await Promise.all(data.map(processAnimeData));
-
-    cache.set(cacheKey, processedData, 6 * 60 * 60 * 1000); // 6 hours cache
-    return processedData;
+/**
+ * Searches for anime based on a search term.
+ */
+export const searchAnime = async (term: string): Promise<ShikimoriAnime[]> => {
+    const query = new URLSearchParams({ search: term, limit: '30' }).toString();
+    const data = await apiFetch<any[]>(`/animes?${query}`);
+    return processAnimeList(data);
 };
 
-export const getFranchiseAnime = async (id: string): Promise<ShikimoriAnime[]> => {
-    const cacheKey = `anime_franchise_${id}`;
-    
-    const cached = cache.get<ShikimoriAnime[]>(cacheKey);
-    if (cached) return cached;
-
-    const franchiseData = await shikimoriApiFetch<FranchiseData>(`/animes/${id}/franchise`);
-    const franchiseIds = franchiseData.nodes
-        .filter(node => node.id !== franchiseData.current_id) // Exclude current anime
-        .map(node => node.id);
-        
-    if (franchiseIds.length === 0) return [];
-    
-    const animeInFranchise = await getAnimeByIds(franchiseIds);
-
-    cache.set(cacheKey, animeInFranchise, 6 * 60 * 60 * 1000); // 6 hours cache
-    return animeInFranchise;
-};
-
+/**
+ * Fetches all available genres.
+ */
 export const getGenres = async (): Promise<Genre[]> => {
-    const cacheKey = 'genres';
-    const cached = cache.get<Genre[]>(cacheKey);
-    if (cached) return cached;
+    return apiFetch<Genre[]>('/genres', CACHE_TTL_LONG * 24); // Genres change rarely
+};
 
-    const data = await shikimoriApiFetch<Genre[]>('/genres');
-    cache.set(cacheKey, data); // No TTL, genres don't change often
-    return data;
+/**
+ * Fetches a list of similar anime for a given anime ID.
+ */
+export const getSimilarAnime = async (id: string): Promise<ShikimoriAnime[]> => {
+    const data = await apiFetch<any[]>(`/animes/${id}/similar`);
+    return processAnimeList(data);
+};
+
+/**
+ * Converts a FranchiseNode object to a partial ShikimoriAnime object.
+ * This function is now more robust and directly creates a valid object.
+ */
+const franchiseNodeToAnime = (node: FranchiseNode): Partial<ShikimoriAnime> => {
+    const absoluteUrl = makeUrlAbsolute(node.image_url);
+    const hasImage = !isPlaceholderUrl(absoluteUrl);
+    
+    const image: ProcessedImage | null = hasImage ? {
+        original: absoluteUrl,
+        preview: absoluteUrl,
+        x96: absoluteUrl,
+        x48: absoluteUrl,
+    } : null;
+
+    return {
+        id: node.id,
+        name: node.name,
+        russian: node.name,
+        image: image,
+        url: node.url,
+        kind: node.kind as any,
+        score: '0',
+        aired_on: node.year ? `${node.year}-01-01` : new Date(node.date * 1000).toISOString(),
+    };
+};
+
+/**
+ * Fetches the franchise data for a given anime ID.
+ */
+export const getFranchiseAnime = async (id: string): Promise<ShikimoriAnime[]> => {
+    const data = await apiFetch<FranchiseData>(`/animes/${id}/franchise`);
+    if (!data?.nodes?.length) return [];
+    
+    // Directly map nodes to partial anime objects. This is safer than using processAnimeList
+    // which expects a different data structure.
+    return data.nodes
+      .map(franchiseNodeToAnime)
+      // We cast to ShikimoriAnime[] because we provide enough fields for display.
+      .filter(Boolean) as ShikimoriAnime[];
 };

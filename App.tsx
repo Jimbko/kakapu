@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { HashRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import HomePage from './pages/HomePage';
 import AnimePage from './pages/AnimePage';
@@ -11,27 +11,10 @@ import CommunityPage from './pages/CommunityPage';
 import SearchPage from './pages/SearchPage';
 import CatalogPage from './pages/CatalogPage';
 import { AuthProvider } from './contexts/AuthContext';
+import { PosterProvider } from './contexts/PosterContext';
+import { cache } from './services/cache';
 
-// Этот новый компонент создан для того, чтобы можно было использовать хуки роутера, такие как useNavigate
 const AppRoutes: React.FC = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    // Этот эффект обрабатывает специальный запрос пользователя:
-    // при обновлении страницы всегда переходить на главную.
-    const navigationEntries = performance.getEntriesByType("navigation");
-    // FIX: Cast PerformanceEntry to PerformanceNavigationTiming to access the 'type' property.
-    if (navigationEntries.length > 0 && (navigationEntries[0] as PerformanceNavigationTiming).type === 'reload') {
-      if (location.pathname !== '/') {
-        console.log(`Страница перезагружена по адресу ${location.pathname}. Перенаправление на главную согласно запросу.`);
-        // Использование replace: true, чтобы не добавлять главную страницу в историю навигации при этом редиректе
-        navigate('/', { replace: true });
-      }
-    }
-    // Пустой массив зависимостей гарантирует, что это выполнится только один раз при первоначальной загрузке/обновлении.
-  }, []);
-
   return (
     <Routes>
       <Route path="/" element={<Layout />}>
@@ -50,10 +33,17 @@ const AppRoutes: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  useEffect(() => {
+    // Clean up expired cache items on application start.
+    cache.clearExpired();
+  }, []);
+
   return (
     <HashRouter>
       <AuthProvider>
-        <AppRoutes />
+        <PosterProvider>
+          <AppRoutes />
+        </PosterProvider>
       </AuthProvider>
     </HashRouter>
   );

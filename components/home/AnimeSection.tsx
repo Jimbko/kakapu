@@ -2,8 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ShikimoriAnime } from '../../types';
 import { AnimeCard } from '../shared/AnimeCard';
-import { LoadingSpinner } from '../shared/LoadingSpinner';
 import { ErrorMessage } from '../shared/ErrorMessage';
+import { AnimeCardSkeleton } from '../shared/skeletons/AnimeCardSkeleton';
 
 interface AnimeSectionProps {
   title: string;
@@ -33,10 +33,7 @@ export const AnimeSection: React.FC<AnimeSectionProps> = ({
       return (
         <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-${columns} gap-4`}>
           {Array.from({ length: columns }).map((_, i) => (
-            <div key={i} className="flex-shrink-0">
-              <div className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
-              <div className="h-4 bg-zinc-800 rounded mt-2 animate-pulse w-3/4"></div>
-            </div>
+            <AnimeCardSkeleton key={i} />
           ))}
         </div>
       );
@@ -49,13 +46,6 @@ export const AnimeSection: React.FC<AnimeSectionProps> = ({
     if (!animeList || animeList.length === 0) {
       return <p className="text-zinc-500 text-center py-8">{emptyMessage}</p>;
     }
-
-    console.log(`🏠 Rendering section "${title}" with items:`, animeList.map(a => ({
-        id: a.id,
-        name: a.russian || a.name,
-        hasImage: !!a.image,
-        imageUrl: a.image?.original
-    })));
 
     return (
       <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-${columns} gap-4`}>

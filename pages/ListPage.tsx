@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { ShikimoriAnime } from '../types';
 import { getAnimeList } from '../services/shikimori';
 import { AnimeCard } from '../components/shared/AnimeCard';
+import { AnimeCardSkeleton } from '../components/shared/skeletons/AnimeCardSkeleton';
 
 const ListPage: React.FC = () => {
     const { type, title } = useParams<{ type: string; title: string }>();
@@ -51,11 +52,8 @@ const ListPage: React.FC = () => {
                 {animeList.map(anime => (
                     <AnimeCard key={anime.id} anime={anime} />
                 ))}
-                {loading && Array.from({ length: 10 }).map((_, i) => (
-                    <div key={i} className="flex-shrink-0">
-                        <div className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
-                        <div className="h-4 bg-zinc-800 rounded mt-2 animate-pulse w-3/4"></div>
-                    </div>
+                {loading && Array.from({ length: 12 }).map((_, i) => (
+                    <AnimeCardSkeleton key={i} />
                 ))}
             </div>
             {hasMore && !loading && (

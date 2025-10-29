@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShikimoriAnime } from '../../types';
 import { ICONS } from '../../constants';
+import { usePosters } from '../../contexts/PosterContext';
+import { ImagePlaceholder } from './ImagePlaceholder';
 
 interface AnimeCardProps {
   anime: ShikimoriAnime;
@@ -9,23 +11,42 @@ interface AnimeCardProps {
 }
 
 export const AnimeCard: React.FC<AnimeCardProps> = ({ anime, showRating = true }) => {
-  const title = anime.russian || anime.name;
-  const score = parseFloat(anime.score);
+  const { posters, requestPoster } = usePosters();
+  
+  const [currentAnime, setCurrentAnime] = useState(posters.get(anime.id) || anime);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  useEffect(() => {
+    const updatedAnime = posters.get(anime.id);
+    if (updatedAnime) {
+      setCurrentAnime(updatedAnime);
+    }
+  }, [posters, anime.id]);
+  
+  useEffect(() => {
+    if (!anime.image) {
+      requestPoster(anime.id);
+    }
+  }, [anime.id, anime.image, requestPoster]);
+
+  const imageUrl = currentAnime.image?.preview;
+  const title = currentAnime.russian || currentAnime.name;
+  const score = parseFloat(currentAnime.score);
 
   return (
-    <Link to={`/anime/${anime.id}`} className="group block">
+    <Link to={`/anime/${currentAnime.id}`} className="group block">
       <div className="aspect-[2/3] w-full bg-zinc-800 rounded-lg overflow-hidden relative">
-        {anime.image ? (
+        {imageUrl ? (
           <img
-            src={anime.image.preview}
+            key={imageUrl} // Force re-render on URL change
+            src={imageUrl}
             alt={title}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+            onLoad={() => setImageLoaded(true)}
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-zinc-500 text-sm">Нет постера</span>
-          </div>
+          <ImagePlaceholder />
         )}
         
         {showRating && score > 0 && (

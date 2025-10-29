@@ -1,4 +1,6 @@
-import { ProcessedImage } from "./services/imageProcessor";
+// FIX: Import ProcessedImage for use within this module and re-export it.
+import type { ProcessedImage } from "./services/imageProcessor";
+export type { ProcessedImage };
 
 export interface User {
   id: string;
@@ -125,4 +127,14 @@ export interface FranchiseData {
   links: any[];
   nodes: FranchiseNode[];
   current_id: number;
+}
+
+// New type for Community Page Activity Feed
+export interface ActivityItem {
+  id: string;
+  type: 'comment' | 'status_update' | 'review';
+  user: { id: string; name: string; avatar: string };
+  timestamp: string;
+  content: string;
+  relatedAnime: { id: number; name: string };
 }

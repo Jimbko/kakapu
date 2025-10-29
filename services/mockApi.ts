@@ -1,13 +1,17 @@
-import { Comment, UserProfile, UserAnimeList } from '../types';
+import { Comment, UserProfile, UserAnimeList, ShikimoriAnime } from '../types';
+
+// --- MOCK DATA ---
 
 const mockUsers = {
   user1: { id: 'u1', name: 'AnimeFan123', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
   user2: { id: 'u2', name: 'ShounenEnjoyer', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026705d' },
   user3: { id: 'u3', name: 'IsekaiWaifu', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026706d' },
   user4: { id: 'u4', name: 'Troll-kun', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026707d' },
+  user5: { id: 'u5', name: 'SliceOfLifeLover', avatar: 'https://i.pravatar.cc/150?u=a042581f4e29026708d' },
 };
 
 const mockComments: Comment[] = [
+  // ... existing mockComments
   {
     id: 'c1',
     user: mockUsers.user1,
@@ -61,6 +65,58 @@ const mockUserAnimeLists: UserAnimeList = {
     favorite: [{id: 41467, name: 'Bleach'}]
 };
 
+// NEW MOCK DATA
+export interface ActivityItem {
+  id: string;
+  type: 'comment' | 'status_update' | 'review';
+  user: { id: string; name: string; avatar: string };
+  timestamp: string;
+  content: string;
+  relatedAnime: { id: number; name: string };
+}
+
+const mockActivityFeed: ActivityItem[] = [
+  {
+    id: 'act1',
+    type: 'comment',
+    user: mockUsers.user1,
+    timestamp: '15 минут назад',
+    content: 'Эта серия была просто невероятной! Особенно концовка, сижу в мурашках.',
+    relatedAnime: { id: 52991, name: 'Провожающая в последний путь Фрирен' }
+  },
+  {
+    id: 'act2',
+    type: 'status_update',
+    user: mockUsers.user3,
+    timestamp: '1 час назад',
+    content: 'добавил(а) в "Запланировано"',
+    relatedAnime: { id: 21, name: 'Ван-Пис' }
+  },
+  {
+    id: 'act3',
+    type: 'status_update',
+    user: mockUsers.user2,
+    timestamp: '3 часа назад',
+    content: 'просмотрел(а)',
+    relatedAnime: { id: 9253, name: 'Врата Штейна' }
+  },
+   {
+    id: 'act4',
+    type: 'comment',
+    user: mockUsers.user5,
+    timestamp: '5 часов назад',
+    content: 'Пересматриваю в третий раз. Все еще гениально. Лучшее аниме всех времен.',
+    relatedAnime: { id: 5114, name: 'Стальной алхимик: Братство' }
+  },
+];
+
+const mockFriends = [
+  mockUsers.user1, mockUsers.user2, mockUsers.user3, mockUsers.user4, mockUsers.user5
+];
+
+
+// --- API FUNCTIONS ---
+
 const simulateDelay = <T>(data: T, delay: number): Promise<T> => 
     new Promise(resolve => setTimeout(() => resolve(data), delay));
 
@@ -78,3 +134,14 @@ export const getUserAnimeLists = (username: string): Promise<UserAnimeList> => {
     console.log(`Fetching anime lists for ${username}`);
     return simulateDelay(mockUserAnimeLists, 400);
 };
+
+// NEW API FUNCTIONS
+export const getCommunityActivityFeed = (): Promise<ActivityItem[]> => {
+  console.log('Fetching community activity feed');
+  return simulateDelay(mockActivityFeed, 600);
+}
+
+export const getFriendsList = (): Promise<{ id: string; name: string; avatar: string; }[]> => {
+  console.log('Fetching friends list');
+  return simulateDelay(mockFriends, 400);
+}

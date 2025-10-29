@@ -1,34 +1,23 @@
 import { KodikSearchResult, ShikimoriAnime } from "../types";
 
-const KODIK_API_BASE = 'https://kodikapi.com';
-// Используем надежный резервный токен, так как получение нового на клиенте невозможно из-за CORS
-const KODIK_TOKEN = '3f72e96c268b3c43694060851e331b2c';
-
 /**
- * Осуществляет прямой поиск в API Kodik с клиента.
+ * Осуществляет поиск в API Kodik через прокси-сервер для обхода CORS.
  */
-const searchKodikDirectly = async (params: { shikimori_id?: number; title?: string }): Promise<KodikSearchResult | null> => {
+const searchKodikViaProxy = async (params: { shikimori_id?: number; title?: string }): Promise<KodikSearchResult | null> => {
     try {
-        const urlParams = new URLSearchParams({ token: KODIK_TOKEN });
-        if (params.shikimori_id) {
-            urlParams.set('shikimori_id', String(params.shikimori_id));
-        } else if (params.title) {
-            urlParams.set('title', params.title);
-        }
+        console.log(`🔍 Поиск в Kodik через прокси:`, params);
 
-        console.log(`🔍 Прямой поиск в Kodik:`, params);
-
-        const response = await fetch(`${KODIK_API_BASE}/search`, {
+        // Запрос к нашему прокси-API
+        const response = await fetch('/api/kodik', {
             method: 'POST',
             headers: {
-                // Kodik API требует этот Content-Type для POST запросов
-                'Content-Type': 'application/x-www-form-urlencoded',
+                'Content-Type': 'application/json',
             },
-            body: urlParams.toString(),
+            body: JSON.stringify(params),
         });
 
         if (!response.ok) {
-            console.error(`Kodik API error: ${response.status}`);
+            console.error(`Ошибка прокси Kodik: ${response.status}`);
             return null;
         }
 
@@ -36,7 +25,7 @@ const searchKodikDirectly = async (params: { shikimori_id?: number; title?: stri
         return (data.results && data.results.length > 0) ? data.results[0] : null;
 
     } catch (error) {
-        console.error('Прямой поиск в Kodik не удался:', error);
+        console.error('Поиск в Kodik через прокси не удался:', error);
         return null;
     }
 };
@@ -47,19 +36,19 @@ const searchKodikDirectly = async (params: { shikimori_id?: number; title?: stri
 export const findKodikPlayer = async (anime: ShikimoriAnime): Promise<KodikSearchResult | null> => {
     // 1. Поиск по Shikimori ID (самый надежный)
     console.log(`Kodik: Поиск по shikimori_id ${anime.id}`);
-    let result = await searchKodikDirectly({ shikimori_id: anime.id });
+    let result = await searchKodikViaProxy({ shikimori_id: anime.id });
     if (result) return result;
 
     // 2. Фолбэк на русское название
     if (anime.russian) {
         console.log(`Kodik: Не найдено по shikimori_id. Ищу по названию: "${anime.russian}"`);
-        result = await searchKodikDirectly({ title: anime.russian });
+        result = await searchKodikViaProxy({ title: anime.russian });
         if (result) return result;
     }
 
     // 3. Фолбэк на оригинальное название
     console.log(`Kodik: Не найдено по русскому названию. Ищу по оригинальному: "${anime.name}"`);
-    result = await searchKodikDirectly({ title: anime.name });
+    result = await searchKodikViaProxy({ title: anime.name });
     if (result) return result;
     
     // 4. Фолбэк на английские названия
@@ -67,7 +56,7 @@ export const findKodikPlayer = async (anime: ShikimoriAnime): Promise<KodikSearc
         for (const title of anime.english) {
             if (title) {
                 console.log(`Kodik: Не найдено по оригинальному. Ищу по английскому: "${title}"`);
-                result = await searchKodikDirectly({ title: title });
+                result = await searchKodikViaProxy({ title: title });
                 if (result) return result;
             }
         }

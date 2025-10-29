@@ -61,7 +61,7 @@ const ProfilePage: React.FC = () => {
                     </button>
                 </div>
             )}
-            <ProfileLists lists={userLists} />
+            <ProfileLists lists={userLists} isOwnProfile={isOwnProfile} />
         </div>
     );
 };

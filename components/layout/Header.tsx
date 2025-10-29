@@ -36,6 +36,7 @@ const Header: React.FC = () => {
                             <NavLink to="/catalog">Каталог</NavLink>
                             <NavLink to="/top100">Топ-100</NavLink>
                             <NavLink to="/random">Случайное</NavLink>
+                            <NavLink to="/community">Сообщество</NavLink>
                         </nav>
                     </div>
 

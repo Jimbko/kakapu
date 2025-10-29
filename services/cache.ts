@@ -1,117 +1,124 @@
 interface CacheItem<T> {
-  timestamp: number;
+  expires: number;
   data: T;
 }
 
 class CacheService {
   private prefix = 'animevolnitsa_cache_';
+  private memoryCache = new Map<string, CacheItem<any>>();
 
-  /**
-   * Retrieves an item from the cache. Returns null if the item
-   * does not exist or has expired.
-   * @param key The cache key.
-   * @returns The cached data or null.
-   */
-  get<T>(key: string): T | null {
-    const fullKey = this.prefix + key;
+  constructor() {
+    this.hydrateMemoryCache();
+  }
+
+  private hydrateMemoryCache(): void {
     try {
-      const itemStr = localStorage.getItem(fullKey);
-      if (!itemStr) {
-        return null;
-      }
-      
-      const item: CacheItem<T> = JSON.parse(itemStr);
-      const now = Date.now();
-      
-      // The item has an implicit TTL of infinity if its timestamp is 0
-      if (item.timestamp === 0 || (now - item.timestamp < 0)) {
-         // This condition is for items that should never expire
-         // Or if somehow timestamp is in the future
-      } else {
-        // Check if timestamp exists and is a number
-        if (typeof item.timestamp !== 'number') {
-            localStorage.removeItem(fullKey);
-            return null;
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(this.prefix)) {
+          const itemStr = localStorage.getItem(key);
+          if (itemStr) {
+            const item: CacheItem<any> = JSON.parse(itemStr);
+            if (item.expires === 0 || item.expires > Date.now()) {
+              this.memoryCache.set(key, item);
+            } else {
+              localStorage.removeItem(key); // Clean up expired on hydration
+            }
+          }
         }
       }
+      console.log(`[Cache] In-memory cache hydrated with ${this.memoryCache.size} items.`);
+    } catch (e) {
+      console.error("[Cache] Failed to hydrate memory cache from localStorage.", e);
+    }
+  }
 
-      // Check if data exists
-      if (item.data) {
-        return item.data;
+  get<T>(key: string): T | null {
+    const fullKey = this.prefix + key;
+    
+    // 1. Try memory cache first
+    const memItem = this.memoryCache.get(fullKey);
+    if (memItem) {
+      if (memItem.expires === 0 || memItem.expires > Date.now()) {
+        return memItem.data;
       } else {
+        // Item expired, remove from both caches
+        this.memoryCache.delete(fullKey);
         localStorage.removeItem(fullKey);
         return null;
       }
-
-    } catch (error) {
-      console.error(`Cache: Error getting item for key "${key}"`, error);
-      localStorage.removeItem(fullKey);
-      return null;
     }
+    
+    return null; // No need to check localStorage again, it's hydrated
   }
 
-  /**
-   * Stores an item in the cache.
-   * @param key The cache key.
-   * @param data The data to store.
-   * @param ttl The Time-To-Live in milliseconds. If not provided, cache is indefinite.
-   */
   set<T>(key: string, data: T, ttl?: number): void {
     const fullKey = this.prefix + key;
+    const expires = ttl ? Date.now() + ttl : 0; // 0 means it won't expire
+
+    const item: CacheItem<T> = { expires, data };
+
     try {
-        const expiration = ttl ? Date.now() + ttl : 0; // 0 means it won't expire based on TTL check
-        const item: CacheItem<T> = {
-            timestamp: expiration,
-            data: data
-        };
-        localStorage.setItem(fullKey, JSON.stringify(item));
+      // Set in both caches
+      this.memoryCache.set(fullKey, item);
+      localStorage.setItem(fullKey, JSON.stringify(item));
     } catch (error) {
-        console.error(`Cache: Error setting item for key "${key}"`, error);
-        this.cleanUp();
+      console.error(`[Cache] Error setting item for key "${key}". LocalStorage might be full.`, error);
+      this.cleanUpStorage();
     }
   }
 
-  /**
-   * Removes an item from the cache.
-   * @param key The cache key.
-   */
   remove(key: string): void {
-    localStorage.removeItem(this.prefix + key);
+    const fullKey = this.prefix + key;
+    this.memoryCache.delete(fullKey);
+    localStorage.removeItem(fullKey);
   }
 
-  /**
-   * Clears all items from the application's cache.
-   */
   clear(): void {
-    Object.keys(localStorage)
-      .filter(key => key.startsWith(this.prefix))
-      .forEach(key => localStorage.removeItem(key));
+    const keysToRemove: string[] = [];
+    this.memoryCache.forEach((_, key) => {
+      if (key.startsWith(this.prefix)) {
+        keysToRemove.push(key);
+      }
+    });
+    keysToRemove.forEach(key => {
+      this.memoryCache.delete(key);
+      localStorage.removeItem(key);
+    });
   }
-  
-  /**
-   * Tries to free up space by removing the oldest items if localStorage is full.
-   */
-  private cleanUp(): void {
-    console.warn("Cache: LocalStorage might be full. Attempting cleanup.");
+
+  clearExpired(): void {
+    const now = Date.now();
+    let cleanedCount = 0;
+    this.memoryCache.forEach((item, key) => {
+      if (item.expires !== 0 && item.expires <= now) {
+        this.memoryCache.delete(key);
+        localStorage.removeItem(key);
+        cleanedCount++;
+      }
+    });
+    if (cleanedCount > 0) {
+      console.log(`[Cache] Cleared ${cleanedCount} expired items.`);
+    }
+  }
+
+  private cleanUpStorage(): void {
+    console.warn("[Cache] LocalStorage is likely full. Cleaning up the oldest 20% of expiring items.");
     
-    const items: { key: string, timestamp: number }[] = [];
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith(this.prefix)) {
-            try {
-                const item = JSON.parse(localStorage.getItem(key)!);
-                if (item && typeof item.timestamp === 'number' && item.timestamp > 0) { // only clean up expiring items
-                    items.push({ key, timestamp: item.timestamp });
-                }
-            } catch (e) { /* ignore parse errors */ }
-        }
+    const items: { key: string, expires: number }[] = [];
+    this.memoryCache.forEach((item, key) => {
+      if (key.startsWith(this.prefix) && item.expires > 0) { // only clean up expiring items
+        items.push({ key, expires: item.expires });
+      }
     });
 
-    // Sort by oldest expiration date and remove the bottom 20%
-    items.sort((a, b) => a.timestamp - b.timestamp);
-    const itemsToRemove = Math.ceil(items.length * 0.2);
+    items.sort((a, b) => a.expires - b.expires);
+    const itemsToRemoveCount = Math.ceil(items.length * 0.2);
     
-    for (let i = 0; i < itemsToRemove; i++) {
-        localStorage.removeItem(items[i].key);
+    for (let i = 0; i < itemsToRemoveCount; i++) {
+      if (items[i]) {
+        this.remove(items[i].key.replace(this.prefix, ''));
+      }
     }
   }
 }

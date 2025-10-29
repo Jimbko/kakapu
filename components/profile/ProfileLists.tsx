@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { UserAnimeList, ShikimoriAnime } from '../../types';
 import { getAnimeByIds } from '../../services/shikimori';
 import { AnimeCard } from '../shared/AnimeCard';
+import { FriendsList } from '../community/FriendsList';
+import { AnimeCardSkeleton } from '../shared/skeletons/AnimeCardSkeleton';
 
 interface ProfileListsProps {
   lists: UserAnimeList;
+  isOwnProfile: boolean;
 }
 
 type ListKey = keyof UserAnimeList;
+type ActiveTab = ListKey | 'friends';
 
 const listTitles: Record<ListKey, string> = {
   watching: 'Смотрю',
@@ -45,14 +49,13 @@ const ListTabContent: React.FC<{ list: { id: number; name: string }[] }> = ({ li
   }, [list]);
 
   if (loading) {
-    return <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4">
-        {Array.from({ length: list.length }).map((_, i) => (
-             <div key={i} className="flex-shrink-0">
-                <div className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
-                <div className="h-4 bg-zinc-800 rounded mt-2 animate-pulse w-3/4"></div>
-            </div>
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 p-4">
+        {Array.from({ length: list.length || 6 }).map((_, i) => (
+          <AnimeCardSkeleton key={i} />
         ))}
-    </div>;
+      </div>
+    );
   }
   
   if (animeDetails.length === 0) {
@@ -69,8 +72,8 @@ const ListTabContent: React.FC<{ list: { id: number; name: string }[] }> = ({ li
 };
 
 
-export const ProfileLists: React.FC<ProfileListsProps> = ({ lists }) => {
-  const [activeTab, setActiveTab] = useState<ListKey>('watching');
+export const ProfileLists: React.FC<ProfileListsProps> = ({ lists, isOwnProfile }) => {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('watching');
   const listKeys = Object.keys(lists) as ListKey[];
 
   return (
@@ -90,10 +93,29 @@ export const ProfileLists: React.FC<ProfileListsProps> = ({ lists }) => {
               {listTitles[key]} ({lists[key].length})
             </button>
           ))}
+          {isOwnProfile && (
+            <button
+              key="friends"
+              onClick={() => setActiveTab('friends')}
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-colors whitespace-nowrap ${
+                activeTab === 'friends'
+                  ? 'bg-purple-600 text-white'
+                  : 'text-zinc-300 hover:bg-zinc-700'
+              }`}
+            >
+              Друзья
+            </button>
+          )}
         </nav>
       </div>
       <div>
-        <ListTabContent list={lists[activeTab]} />
+        {activeTab === 'friends' ? (
+          <div className="p-4">
+            <FriendsList />
+          </div>
+        ) : (
+          <ListTabContent list={lists[activeTab]} />
+        )}
       </div>
     </div>
   );

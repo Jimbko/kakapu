@@ -4,6 +4,7 @@ import { ShikimoriAnime } from '../types';
 import { getAnimeList } from '../services/shikimori';
 import { AnimeCard } from '../components/shared/AnimeCard';
 import { FilterSidebar } from '../components/catalog/FilterSidebar';
+import { AnimeCardSkeleton } from '../components/shared/skeletons/AnimeCardSkeleton';
 
 // --- Child Component for displaying anime grid ---
 const AnimeGrid: React.FC<{
@@ -29,10 +30,7 @@ const AnimeGrid: React.FC<{
                     <AnimeCard key={anime.id} anime={anime} />
                 ))}
                 {loading && Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="flex-shrink-0">
-                        <div className="aspect-[2/3] bg-zinc-800 rounded-lg animate-pulse"></div>
-                        <div className="h-4 bg-zinc-800 rounded mt-2 animate-pulse w-3/4"></div>
-                    </div>
+                    <AnimeCardSkeleton key={i} />
                 ))}
             </div>
             {hasMore && !loading && animeList.length > 0 && (

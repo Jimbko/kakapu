@@ -78,14 +78,37 @@ export const selectBestPoster = (
         const absoluteUrl = makeUrlAbsolute(source.url);
         if (!isPlaceholderUrl(absoluteUrl)) {
             // Found a valid poster. Now, construct the full image object.
-            // We'll use the best available URLs for all sizes, preferring the original if others are missing.
-            const original = makeUrlAbsolute(listImage?.original || detailImage?.original || absoluteUrl);
-            const preview = makeUrlAbsolute(listImage?.preview || detailImage?.preview || original);
-            const x96 = makeUrlAbsolute(listImage?.x96 || detailImage?.x96 || preview);
-            const x48 = makeUrlAbsolute(listImage?.x48 || detailImage?.x48 || x96);
+            
+            // Helper to find the first valid (non-placeholder) URL from a list of candidates.
+            const getBestUrl = (...urls: (string | undefined | null)[]): string | null => {
+                for (const url of urls) {
+                    if (url && !isPlaceholderUrl(url)) {
+                        return url;
+                    }
+                }
+                return null; // Return null if no valid URL is found.
+            };
+
+            const bestOriginal = getBestUrl(listImage?.original, detailImage?.original);
+            const bestPreview = getBestUrl(listImage?.preview, detailImage?.preview);
+            const bestX96 = getBestUrl(listImage?.x96, detailImage?.x96);
+            const bestX48 = getBestUrl(listImage?.x48, detailImage?.x48);
+
+            // Cascade to find a fallback if a specific size is missing, from best to worst quality.
+            const fallback = makeUrlAbsolute(bestOriginal || bestPreview || bestX96 || bestX48);
+
+            const finalOriginal = makeUrlAbsolute(bestOriginal || fallback);
+            const finalPreview = makeUrlAbsolute(bestPreview || finalOriginal);
+            const finalX96 = makeUrlAbsolute(bestX96 || finalPreview);
+            const finalX48 = makeUrlAbsolute(bestX48 || finalX96);
 
             return {
-                image: { original, preview, x96, x48 },
+                image: { 
+                    original: finalOriginal, 
+                    preview: finalPreview, 
+                    x96: finalX96, 
+                    x48: finalX48 
+                },
                 sourceInfo: { endpoint: source.endpoint, size: source.size, url: source.url },
                 isPlaceholder: false,
             };
@@ -99,6 +122,35 @@ export const selectBestPoster = (
         isPlaceholder: true,
     };
 };
+
+/**
+ * Helper function to check if an image URL is accessible and valid.
+ * Uses the Image object which is more reliable for cross-origin checks than fetch.
+ * @param url The URL of the image to check.
+ * @returns A promise that resolves to true if the image loads, false otherwise.
+ */
+const checkImageExists = (url: string): Promise<boolean> => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        let settled = false;
+
+        const done = (result: boolean) => {
+            if (!settled) {
+                settled = true;
+                resolve(result);
+            }
+        };
+
+        img.onload = () => done(true);
+        img.onerror = () => done(false);
+
+        // A timeout in case the request hangs
+        setTimeout(() => done(false), 3000); 
+        
+        img.src = url;
+    });
+};
+
 
 /**
  * Пытается получить постер через альтернативные методы для аниме без постера в API
@@ -117,14 +169,9 @@ export const tryAlternativePosterSources = async (animeId: number, animeName: st
     ];
     
     for (const url of directUrls) {
-        try {
-            const response = await fetch(url, { method: 'HEAD' });
-            if (response.ok && response.headers.get('content-type')?.startsWith('image/')) {
-                if (DEBUG) console.log(`✅ Found poster via direct URL: ${url}`);
-                return url;
-            }
-        } catch (e) {
-            continue;
+        if (await checkImageExists(url)) {
+            if (DEBUG) console.log(`✅ Found poster via direct URL: ${url}`);
+            return url;
         }
     }
     
@@ -204,6 +251,21 @@ export const tryAlternativePosterSources = async (animeId: number, animeName: st
         }
     } catch (e) {
         if (DEBUG) console.log('AniList attempt failed:', e);
+    }
+
+    // Метод 4: Поиск в Kitsu.io
+    try {
+        const kitsuResponse = await fetch(`https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(animeName)}&page[limit]=1`);
+        if (kitsuResponse.ok) {
+            const kitsuData = await kitsuResponse.json();
+            const posterUrl = kitsuData?.data?.[0]?.attributes?.posterImage?.original;
+            if (posterUrl) {
+                if (DEBUG) console.log(`✅ Found poster via Kitsu: ${posterUrl}`);
+                return posterUrl;
+            }
+        }
+    } catch (e) {
+        if (DEBUG) console.log('Kitsu attempt failed:', e);
     }
     
     if (DEBUG) console.log(`❌ No alternative poster found for anime ${animeId}`);
